@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ad Sources</title>
+    <style>
+      :root {
+        --bg: #f4f6f8;
+        --card: #ffffff;
+        --text: #16202a;
+        --muted: #697886;
+        --line: #dde3e9;
+        --brand: #128c4a;
+        --brand-soft: #e7f5ed;
+        --danger: #c0392b;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #10161c; --card: #18212a; --text: #e8edf2; --muted: #93a1ae;
+          --line: #2a3742; --brand: #2cc06b; --brand-soft: #16302250;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #10161c; --card: #18212a; --text: #e8edf2; --muted: #93a1ae;
+        --line: #2a3742; --brand: #2cc06b; --brand-soft: #16302250;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--text);
+        font-family: "Segoe UI", Tahoma, system-ui, -apple-system, sans-serif;
+        line-height: 1.6;
+      }
+      .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+
+      .top { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+      h1 { font-size: 1.5rem; margin: 0 0 4px; flex: 1; min-width: 220px; }
+      .sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 20px; }
+
+      button, select {
+        font-family: inherit; font-size: 0.86rem; cursor: pointer;
+        border-radius: 999px; padding: 7px 16px; font-weight: 600;
+        background: transparent; color: var(--muted);
+        border: 1px solid var(--line);
+      }
+      button:hover, select:hover { color: var(--brand); border-color: var(--brand); }
+      button.primary {
+        background: var(--brand); color: #fff; border-color: var(--brand);
+      }
+      select { border-radius: 10px; }
+
+      .controls {
+        display: flex; gap: 10px; align-items: center;
+        flex-wrap: wrap; margin-bottom: 18px;
+      }
+
+      .stats { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-bottom: 20px; }
+      @media (min-width: 620px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+      .stat {
+        background: var(--card); border: 1px solid var(--line);
+        border-radius: 12px; padding: 14px 16px;
+      }
+      .stat .n { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+      .stat .l { color: var(--muted); font-size: 0.8rem; }
+
+      .card {
+        background: var(--card); border: 1px solid var(--line);
+        border-radius: 12px; padding: 0; margin-bottom: 16px; overflow: hidden;
+      }
+      .card h2 {
+        font-size: 0.95rem; margin: 0; padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+      th, td {
+        text-align: start; padding: 10px 16px;
+        border-bottom: 1px solid var(--line); vertical-align: top;
+      }
+      th { color: var(--muted); font-weight: 600; font-size: 0.78rem; white-space: nowrap; }
+      tr:last-child td { border-bottom: 0; }
+      tbody tr.clickable { cursor: pointer; }
+      tbody tr.clickable:hover { background: var(--brand-soft); }
+      tr.selected { background: var(--brand-soft); }
+
+      .pill {
+        display: inline-block; background: var(--brand-soft); color: var(--brand);
+        border-radius: 999px; padding: 1px 10px; font-size: 0.78rem; font-weight: 600;
+      }
+      .mono { direction: ltr; font-size: 0.82rem; color: var(--muted); word-break: break-all; }
+      .title { font-weight: 600; }
+
+      .notice {
+        border: 1px solid var(--line); border-inline-start: 4px solid var(--brand);
+        background: var(--card); border-radius: 10px; padding: 14px 16px;
+        margin-bottom: 20px; font-size: 0.9rem;
+      }
+      .notice.bad { border-inline-start-color: var(--danger); }
+
+      input[type="email"], input[type="password"] {
+        width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+        border-radius: 10px; background: var(--bg); color: var(--text);
+        font-family: inherit; font-size: 0.95rem; margin-bottom: 10px;
+      }
+      .status { font-size: 0.86rem; }
+      .status.err { color: var(--danger); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <h1 id="h1"></h1>
+        <button id="lang" type="button"></button>
+      </div>
+      <p class="sub" id="sub"></p>
+      <div id="app"></div>
+    </div>
+
+    <script>
+      var DICT = {
+        en: {
+          dir: "ltr", htmlLang: "en", switchTo: "العربية",
+          title: "Where Customers Came From",
+          sub: "Customers who reached you by tapping a Click-to-WhatsApp ad. People who saved your number or messaged you directly can't be attributed — WhatsApp doesn't say where they came from.",
+          loginHint: "Sign in with the owner account (the same credentials as the user panel).",
+          email: "Email", password: "Password", signIn: "Sign in",
+          signingIn: "Signing in…", badCreds: "Invalid credentials",
+          noServer: "Could not reach the server", loading: "Loading…",
+          error: "Something went wrong",
+          sessionExpired: "Session expired. Please sign in again.",
+          empty: "No ad-sourced customers yet. Once someone reaches you through a Click-to-WhatsApp ad, they'll appear here.",
+          allTime: "All time", d7: "Last 7 days", d30: "Last 30 days", d90: "Last 90 days",
+          statCustomers: "customers from ads", statAds: "ads", statTop: "top ad",
+          adsTitle: "Ads", contactsTitle: "Customers",
+          thAd: "Ad", thId: "Ad ID", thCustomers: "Customers", thLast: "Last",
+          thName: "Name", thNumber: "Number", thFrom: "Came from", thWhen: "When",
+          exportCsv: "Export CSV", clearFilter: "Show all", refresh: "Refresh",
+          untitled: "(untitled ad)", noId: "(no id)", filtered: "Filtered by",
+        },
+        ar: {
+          dir: "rtl", htmlLang: "ar", switchTo: "English",
+          title: "مصادر العملاء",
+          sub: "العملاء الذين وصلوا إليك عبر الضغط على إعلان واتساب. أما من حفظ رقمك أو راسلك مباشرة فلا يمكن تحديد مصدره — واتساب لا ترسل هذه المعلومة.",
+          loginHint: "يُرجى تسجيل الدخول بحساب المالك (نفس بيانات لوحة المستخدم).",
+          email: "البريد الإلكتروني", password: "كلمة المرور", signIn: "تسجيل الدخول",
+          signingIn: "جارٍ تسجيل الدخول…", badCreds: "بيانات غير صحيحة",
+          noServer: "تعذّر الاتصال بالخادم", loading: "جارٍ التحميل…",
+          error: "حدث خطأ",
+          sessionExpired: "انتهت الجلسة. يُرجى تسجيل الدخول مجددًا.",
+          empty: "لا يوجد عملاء من الإعلانات بعد. بمجرد وصول أحدهم عبر إعلان واتساب سيظهر هنا.",
+          allTime: "كل الفترات", d7: "آخر ٧ أيام", d30: "آخر ٣٠ يومًا", d90: "آخر ٩٠ يومًا",
+          statCustomers: "عميل من الإعلانات", statAds: "إعلان", statTop: "الأعلى",
+          adsTitle: "الإعلانات", contactsTitle: "العملاء",
+          thAd: "الإعلان", thId: "رقم الإعلان", thCustomers: "العملاء", thLast: "آخر وصول",
+          thName: "الاسم", thNumber: "الرقم", thFrom: "جاء من", thWhen: "التاريخ",
+          exportCsv: "تصدير CSV", clearFilter: "عرض الكل", refresh: "تحديث",
+          untitled: "(إعلان بدون عنوان)", noId: "(بدون رقم)", filtered: "مُصفّى حسب",
+        },
+      };
+
+      var OVERRIDE_KEY = "agent_numbers_lang";
+      var TOKEN_KEY = "wacrm_user";
+      var lang, T;
+      var state = { days: 0, sourceId: null, ads: [], contacts: [] };
+
+      var app = document.getElementById("app");
+
+      function detectLang() {
+        try {
+          var forced = localStorage.getItem(OVERRIDE_KEY);
+          if (forced === "en" || forced === "ar") return forced;
+          var sys = (localStorage.getItem("language") || "english").toLowerCase();
+          if (sys.indexOf("arab") !== -1 || sys.indexOf("hebrew") !== -1) return "ar";
+        } catch (e) {}
+        return "en";
+      }
+
+      function applyLang() {
+        lang = detectLang();
+        T = DICT[lang];
+        document.documentElement.lang = T.htmlLang;
+        document.documentElement.dir = T.dir;
+        document.title = T.title;
+        document.getElementById("h1").textContent = T.title;
+        document.getElementById("sub").textContent = T.sub;
+        document.getElementById("lang").textContent = T.switchTo;
+      }
+
+      document.getElementById("lang").onclick = function () {
+        try { localStorage.setItem(OVERRIDE_KEY, lang === "en" ? "ar" : "en"); } catch (e) {}
+        applyLang();
+        load();
+      };
+
+      function token() {
+        try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
+      }
+
+      function esc(s) {
+        return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+      }
+
+      function fmtDate(v) {
+        if (!v) return "";
+        var d = new Date(v);
+        if (isNaN(d)) return String(v).slice(0, 16).replace("T", " ");
+        return d.toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", {
+          year: "numeric", month: "short", day: "numeric",
+        });
+      }
+
+      function api(path) {
+        return fetch("/api/ad_sources" + path, {
+          headers: { Authorization: "Bearer " + token() },
+        }).then(function (r) { return r.json(); });
+      }
+
+      function showLogin(message) {
+        app.innerHTML =
+          '<div class="notice' + (message ? " bad" : "") + '">' +
+          esc(message || T.loginHint) + "</div>" +
+          '<div class="card" style="padding:18px">' +
+          '<input type="email" id="em" placeholder="' + esc(T.email) + '" autocomplete="username" />' +
+          '<input type="password" id="pw" placeholder="' + esc(T.password) + '" autocomplete="current-password" />' +
+          '<div class="controls" style="margin:0"><button class="primary" id="go">' +
+          esc(T.signIn) + '</button><span class="status" id="st"></span></div></div>';
+
+        document.getElementById("go").onclick = function () {
+          var btn = this, st = document.getElementById("st");
+          btn.disabled = true; st.textContent = T.signingIn; st.className = "status";
+          fetch("/api/user/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: document.getElementById("em").value.trim(),
+              password: document.getElementById("pw").value,
+            }),
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              if (d && d.success && d.token) {
+                try { localStorage.setItem(TOKEN_KEY, d.token); } catch (e) {}
+                load();
+              } else {
+                btn.disabled = false;
+                st.textContent = (d && d.msg) || T.badCreds;
+                st.className = "status err";
+              }
+            })
+            .catch(function () {
+              btn.disabled = false;
+              st.textContent = T.noServer; st.className = "status err";
+            });
+        };
+      }
+
+      function controlsHtml() {
+        function opt(v, label) {
+          return '<option value="' + v + '"' +
+            (state.days === v ? " selected" : "") + ">" + esc(label) + "</option>";
+        }
+        return '<div class="controls">' +
+          '<select id="days">' +
+          opt(0, T.allTime) + opt(7, T.d7) + opt(30, T.d30) + opt(90, T.d90) +
+          "</select>" +
+          '<button id="refresh">' + esc(T.refresh) + "</button>" +
+          '<button id="csv">' + esc(T.exportCsv) + "</button>" +
+          (state.sourceId
+            ? '<button id="clear">' + esc(T.clearFilter) + "</button>" +
+              '<span class="pill">' + esc(T.filtered) + ": " +
+              esc(adTitleOf(state.sourceId)) + "</span>"
+            : "") +
+          "</div>";
+      }
+
+      function adTitleOf(id) {
+        for (var i = 0; i < state.ads.length; i++) {
+          if (String(state.ads[i].source_id) === String(id)) {
+            return state.ads[i].ad_title || T.untitled;
+          }
+        }
+        return id || T.noId;
+      }
+
+      function render() {
+        var ads = state.ads, contacts = state.contacts;
+
+        if (!ads.length && !contacts.length) {
+          app.innerHTML = controlsHtml() + '<div class="notice">' + esc(T.empty) + "</div>";
+          wire();
+          return;
+        }
+
+        var total = 0, top = null;
+        ads.forEach(function (a) {
+          total += Number(a.customers || 0);
+          if (!top || Number(a.customers) > Number(top.customers)) top = a;
+        });
+
+        var html = controlsHtml();
+
+        html +=
+          '<div class="stats">' +
+          '<div class="stat"><div class="n">' + total + '</div><div class="l">' + esc(T.statCustomers) + "</div></div>" +
+          '<div class="stat"><div class="n">' + ads.length + '</div><div class="l">' + esc(T.statAds) + "</div></div>" +
+          '<div class="stat"><div class="n">' + (top ? top.customers : 0) +
+          '</div><div class="l">' + esc(T.statTop) + ": " +
+          esc(top ? (top.ad_title || T.untitled) : "—") + "</div></div>" +
+          "</div>";
+
+        // --- ads table ---
+        html += '<div class="card"><h2>' + esc(T.adsTitle) + "</h2><table><thead><tr>" +
+          "<th>" + esc(T.thAd) + "</th><th>" + esc(T.thId) + "</th>" +
+          "<th>" + esc(T.thCustomers) + "</th><th>" + esc(T.thLast) + "</th>" +
+          "</tr></thead><tbody>";
+
+        ads.forEach(function (a) {
+          var sel = String(a.source_id) === String(state.sourceId) ? " selected" : "";
+          html +=
+            '<tr class="clickable' + sel + '" data-ad="' + esc(a.source_id || "") + '">' +
+            '<td><span class="title">' + esc(a.ad_title || T.untitled) + "</span>" +
+            (a.source_url ? '<br><span class="mono">' + esc(String(a.source_url).slice(0, 70)) + "</span>" : "") +
+            "</td>" +
+            '<td class="mono">' + esc(a.source_id || T.noId) + "</td>" +
+            '<td><span class="pill">' + esc(a.customers) + "</span></td>" +
+            "<td>" + esc(fmtDate(a.last_seen)) + "</td></tr>";
+        });
+
+        html += "</tbody></table></div>";
+
+        // --- contacts table ---
+        html += '<div class="card"><h2>' + esc(T.contactsTitle) + "</h2><table><thead><tr>" +
+          "<th>" + esc(T.thName) + "</th><th>" + esc(T.thNumber) + "</th>" +
+          "<th>" + esc(T.thFrom) + "</th><th>" + esc(T.thWhen) + "</th>" +
+          "</tr></thead><tbody>";
+
+        contacts.forEach(function (c) {
+          html +=
+            "<tr><td>" + esc(c.sender_name || "—") + "</td>" +
+            '<td class="mono">' + esc(c.sender_mobile || "") + "</td>" +
+            "<td>" + esc(c.ad_title || T.untitled) + "</td>" +
+            "<td>" + esc(fmtDate(c.createdAt)) + "</td></tr>";
+        });
+
+        html += "</tbody></table></div>";
+
+        app.innerHTML = html;
+        wire();
+      }
+
+      function wire() {
+        var days = document.getElementById("days");
+        if (days) days.onchange = function () { state.days = Number(this.value); load(); };
+
+        var refresh = document.getElementById("refresh");
+        if (refresh) refresh.onclick = load;
+
+        var clear = document.getElementById("clear");
+        if (clear) clear.onclick = function () { state.sourceId = null; load(); };
+
+        var csv = document.getElementById("csv");
+        if (csv) csv.onclick = exportCsv;
+
+        Array.prototype.forEach.call(
+          document.querySelectorAll("tr[data-ad]"),
+          function (tr) {
+            tr.onclick = function () {
+              var id = tr.getAttribute("data-ad");
+              state.sourceId = String(state.sourceId) === id ? null : id;
+              load();
+            };
+          },
+        );
+      }
+
+      function exportCsv() {
+        var rows = [[T.thName, T.thNumber, T.thFrom, T.thId, T.thWhen]];
+        state.contacts.forEach(function (c) {
+          rows.push([
+            c.sender_name || "",
+            c.sender_mobile || "",
+            c.ad_title || "",
+            c.source_id || "",
+            c.createdAt || "",
+          ]);
+        });
+
+        var csv = rows
+          .map(function (r) {
+            return r
+              .map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; })
+              .join(",");
+          })
+          .join("\r\n");
+
+        // BOM keeps Arabic readable when the file is opened in Excel.
+        var blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "ad-sources.csv";
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      }
+
+      function load() {
+        if (!token()) return showLogin();
+
+        app.innerHTML = '<div class="notice">' + esc(T.loading) + "</div>";
+
+        var q = state.days ? "?days=" + state.days : "";
+        var cq = q ? q + "&" : "?";
+        if (state.sourceId) cq += "source_id=" + encodeURIComponent(state.sourceId) + "&";
+
+        Promise.all([api("/summary" + q), api("/contacts" + cq.replace(/[?&]$/, ""))])
+          .then(function (res) {
+            var s = res[0], c = res[1];
+
+            if (!s || !s.success) {
+              var msg = (s && s.msg) || "";
+              if (/token|Unauthorized|expired/i.test(msg)) {
+                try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+                return showLogin(T.sessionExpired);
+              }
+              app.innerHTML = '<div class="notice bad">' + esc(msg || T.error) + "</div>";
+              return;
+            }
+
+            state.ads = (s.data && s.data.ads) || [];
+            state.contacts = (c && c.success && c.data) || [];
+            render();
+          })
+          .catch(function () {
+            app.innerHTML = '<div class="notice bad">' + esc(T.noServer) + "</div>";
+          });
+      }
+
+      applyLang();
+      load();
+    </script>
+  </body>
+</html>

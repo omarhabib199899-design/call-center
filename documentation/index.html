@@ -1,0 +1,2149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WhatsCRM Ultimate — Documentation</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #1976d2;
+        --success: #2e7d32;
+        --warning: #ed6c02;
+        --info: #0288d1;
+        --danger: #d32f2f;
+        --purple: #9c27b0;
+        --tg-blue: #1976d2;
+        --wa-green: #25d366;
+      }
+
+      body {
+        background: #f8f9fa;
+        color: #212529;
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+
+      /* ── Sticky Nav ── */
+      #sticky-nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      .nav-tab {
+        padding: 12px 20px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        color: #6c757d;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        transition: all 0.15s;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .nav-tab:hover,
+      .nav-tab.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+        font-weight: 700;
+      }
+
+      #nav-scroll {
+        overflow-x: auto;
+        display: flex;
+        scrollbar-width: none;
+      }
+
+      #nav-scroll::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* ── Section Heading ── */
+      .section-heading-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: var(--primary);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 1.1rem;
+      }
+
+      /* ── YouTube Thumbnail ── */
+      .yt-thumb {
+        position: relative;
+        width: 100%;
+        padding-bottom: 56.25%;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        display: block;
+        text-decoration: none;
+        margin-bottom: 1.5rem;
+      }
+
+      .yt-thumb img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .yt-thumb .overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.25);
+        transition: background 0.2s;
+      }
+
+      .yt-thumb:hover .overlay {
+        background: rgba(0, 0, 0, 0.5);
+      }
+
+      .yt-thumb:hover .play-btn {
+        transform: translate(-50%, -50%) scale(1.1);
+      }
+
+      .play-btn {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        transition: transform 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .play-circle {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: #ff0000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 24px rgba(255, 0, 0, 0.5);
+      }
+
+      .play-triangle {
+        width: 0;
+        height: 0;
+        border-top: 14px solid transparent;
+        border-bottom: 14px solid transparent;
+        border-left: 24px solid #fff;
+        margin-left: 5px;
+      }
+
+      .play-label {
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.85rem;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+        letter-spacing: 0.5px;
+      }
+
+      .yt-bottom-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 10px 16px;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .yt-bottom-bar .yt-title {
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 75%;
+      }
+
+      .yt-bottom-bar .yt-badge {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      /* ── Step List ── */
+      .step-num {
+        min-width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--primary);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+
+      /* ── Credential Card ── */
+      .cred-card {
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      /* ── Addon Card ── */
+      .addon-card {
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        border: 1px solid #dee2e6;
+      }
+
+      .addon-card-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid #dee2e6;
+        background: rgba(0, 0, 0, 0.02);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .addon-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 1.3rem;
+      }
+
+      .addon-card-body {
+        padding: 24px;
+      }
+
+      /* ── Inline Code ── */
+      code.inline {
+        background: rgba(0, 0, 0, 0.08);
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.875em;
+        color: #c7254e;
+      }
+
+      /* ── Feature Check List ── */
+      .feature-check {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .feature-check i {
+        font-size: 0.85rem;
+        margin-top: 3px;
+        flex-shrink: 0;
+      }
+
+      /* ── Support Cards ── */
+      .support-card {
+        border-radius: 12px;
+        padding: 24px;
+        height: 100%;
+      }
+
+      .support-icon-box {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      /* ── Misc ── */
+      .section-block {
+        margin-bottom: 80px;
+      }
+      .divider {
+        margin: 40px 0;
+      }
+
+      .portal-card {
+        border-radius: 10px;
+        border: 1px solid var(--info);
+        background: rgba(33, 150, 243, 0.04);
+        padding: 24px;
+        margin-bottom: 1.5rem;
+      }
+
+      .token-tip {
+        border-radius: 10px;
+        border: 1px solid var(--info);
+        background: rgba(33, 150, 243, 0.04);
+        padding: 20px;
+      }
+
+      @media (max-width: 576px) {
+        .play-circle {
+          width: 52px;
+          height: 52px;
+        }
+        .play-triangle {
+          border-top: 11px solid transparent;
+          border-bottom: 11px solid transparent;
+          border-left: 19px solid #fff;
+          margin-left: 4px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="container"
+      style="max-width: 1100px; padding-top: 48px; padding-bottom: 48px"
+    >
+      <!-- ══════════════════════════════════════
+       HERO
+  ══════════════════════════════════════ -->
+      <div style="margin-bottom: 48px">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <span class="badge bg-primary fs-6 fw-semibold"
+            >All Addons Included</span
+          >
+          <span
+            class="badge bg-outline border border-secondary text-secondary fs-6 fw-semibold"
+            >SaaS Ready</span
+          >
+          <span
+            class="badge bg-outline border border-secondary text-secondary fs-6 fw-semibold"
+            >WhatsApp Cloud API</span
+          >
+          <span
+            class="badge bg-outline border border-secondary text-secondary fs-6 fw-semibold"
+            >AI Powered</span
+          >
+        </div>
+
+        <h1
+          style="
+            font-weight: 800;
+            font-size: clamp(2rem, 5vw, 2.8rem);
+            line-height: 1.2;
+            margin-bottom: 12px;
+          "
+        >
+          WhatsCRM Ultimate
+        </h1>
+
+        <p
+          class="text-secondary"
+          style="
+            max-width: 680px;
+            font-size: 1.05rem;
+            line-height: 1.8;
+            margin-bottom: 24px;
+          "
+        >
+          The all-in-one WhatsApp CRM bundle — every addon included, nothing to
+          buy separately. Manage customers, automate AI chatbots, broadcast
+          messages, run AI voice calls, connect Telegram, and ship your own
+          mobile app from one platform.
+        </p>
+
+        <div
+          class="alert alert-info border border-info d-flex gap-2"
+          role="alert"
+          style="border-radius: 10px"
+        >
+          <i class="bi bi-info-circle-fill fs-5 mt-1 flex-shrink-0"></i>
+          <div>
+            <div class="fw-bold">
+              Node.js v20+ required &nbsp;·&nbsp; Node.js v22 recommended
+            </div>
+            <div class="text-secondary small mt-1">
+              Make sure your server is running Node.js 20 or higher before
+              installation. Node.js 22 gives the best performance and
+              compatibility.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+       STICKY NAV
+  ══════════════════════════════════════ -->
+      <div id="sticky-nav">
+        <div id="nav-scroll">
+          <a
+            class="nav-tab active"
+            href="#installation"
+            onclick="setActive(this)"
+            >Installation</a
+          >
+          <a class="nav-tab" href="#meta" onclick="setActive(this)"
+            >Setup Meta</a
+          >
+          <a class="nav-tab" href="#addons" onclick="setActive(this)"
+            >Included Addons</a
+          >
+          <a class="nav-tab" href="#features" onclick="setActive(this)"
+            >Features</a
+          >
+          <a class="nav-tab" href="#support" onclick="setActive(this)"
+            >Support</a
+          >
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+       INTRO VIDEO
+  ══════════════════════════════════════ -->
+      <div style="margin: 48px 0">
+        <a
+          class="yt-thumb"
+          href="https://www.youtube.com/watch?v=Wg_23HLxdHc"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            src="https://img.youtube.com/vi/Wg_23HLxdHc/maxresdefault.jpg"
+            onerror="
+              this.src = 'https://img.youtube.com/vi/Wg_23HLxdHc/hqdefault.jpg'
+            "
+            alt="WhatsCRM Ultimate — Introduction"
+          />
+          <div class="overlay"></div>
+          <div class="play-btn">
+            <div class="play-circle"><div class="play-triangle"></div></div>
+            <span class="play-label">Watch on YouTube</span>
+          </div>
+          <div class="yt-bottom-bar">
+            <span class="yt-title">WhatsCRM Ultimate — Introduction</span>
+            <span class="yt-badge"
+              ><i class="bi bi-youtube text-danger"></i> YouTube</span
+            >
+          </div>
+        </a>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-secondary small"
+            >More tutorials on our channel:</span
+          >
+          <a
+            href="https://www.youtube.com/@Codeyoncom"
+            target="_blank"
+            class="btn btn-sm btn-outline-danger fw-bold"
+            style="text-transform: none; border-radius: 8px"
+          >
+            <i class="bi bi-youtube me-1"></i>@Codeyoncom
+          </a>
+        </div>
+      </div>
+
+      <!-- Warning: Local server -->
+      <div
+        class="alert alert-warning border border-warning d-flex gap-2 mb-5"
+        role="alert"
+        style="border-radius: 10px"
+      >
+        <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"></i>
+        <div>
+          <div class="fw-bold">Local server not supported</div>
+          <div class="text-secondary small mt-1">
+            Install on a real domain only. Your domain must use
+            <code class="inline">https://</code>.
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+       INSTALLATION
+  ══════════════════════════════════════ -->
+      <div id="installation" class="section-block">
+        <!-- Section Heading -->
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="section-heading-icon">
+              <i class="bi bi-rocket-takeoff-fill"></i>
+            </div>
+            <h2
+              class="fw-bold mb-0"
+              style="font-size: clamp(1.4rem, 3vw, 1.75rem)"
+            >
+              Installation
+            </h2>
+          </div>
+          <p
+            class="text-secondary"
+            style="padding-left: 56px; line-height: 1.7; margin-bottom: 0"
+          >
+            Follow the video tutorials to install WhatsCRM Ultimate on your
+            server. Choose the method that matches your hosting environment.
+          </p>
+        </div>
+
+        <!-- cPanel -->
+        <h5 class="fw-semibold mb-3">cPanel — Node.js App Setup</h5>
+        <a
+          class="yt-thumb"
+          href="https://www.youtube.com/watch?v=FbAbltEPDHQ"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            src="https://img.youtube.com/vi/FbAbltEPDHQ/maxresdefault.jpg"
+            onerror="
+              this.src = 'https://img.youtube.com/vi/FbAbltEPDHQ/hqdefault.jpg'
+            "
+            alt="How to setup Node.js App — cPanel"
+          />
+          <div class="overlay"></div>
+          <div class="play-btn">
+            <div class="play-circle"><div class="play-triangle"></div></div>
+            <span class="play-label">Watch on YouTube</span>
+          </div>
+          <div class="yt-bottom-bar">
+            <span class="yt-title">How to setup Node.js App — cPanel</span>
+            <span class="yt-badge"
+              ><i class="bi bi-youtube text-danger"></i> YouTube</span
+            >
+          </div>
+        </a>
+
+        <!-- aaPanel -->
+        <h5 class="fw-semibold mb-3">aaPanel — Node.js App Setup</h5>
+        <a
+          class="yt-thumb"
+          href="https://www.youtube.com/watch?v=wg7zsc4-A84"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            src="https://img.youtube.com/vi/wg7zsc4-A84/maxresdefault.jpg"
+            onerror="
+              this.src = 'https://img.youtube.com/vi/wg7zsc4-A84/hqdefault.jpg'
+            "
+            alt="How to setup Node.js App — aaPanel"
+          />
+          <div class="overlay"></div>
+          <div class="play-btn">
+            <div class="play-circle"><div class="play-triangle"></div></div>
+            <span class="play-label">Watch on YouTube</span>
+          </div>
+          <div class="yt-bottom-bar">
+            <span class="yt-title">How to setup Node.js App — aaPanel</span>
+            <span class="yt-badge"
+              ><i class="bi bi-youtube text-danger"></i> YouTube</span
+            >
+          </div>
+        </a>
+
+        <hr class="divider" />
+
+        <!-- Verify Portal -->
+        <h5 class="fw-semibold mb-2">Verify &amp; Install via Portal</h5>
+        <p class="text-secondary mb-3" style="line-height: 1.7">
+          Use our purchase verification portal to install and update with a
+          single click.
+        </p>
+
+        <div class="portal-card">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-shield-lock-fill text-info fs-5"></i>
+            <span class="fw-bold fs-6">Purchase Verification Portal</span>
+          </div>
+          <p class="text-secondary small mb-3">
+            Verify your Envato purchase code and install/update your application
+            instantly.
+          </p>
+          <a
+            href="https://envato-buyer.oneoftheprojects.com"
+            target="_blank"
+            class="btn btn-info text-white fw-bold"
+            style="border-radius: 8px; text-transform: none"
+          >
+            Open Verification Portal <i class="bi bi-arrow-right ms-1"></i>
+          </a>
+        </div>
+
+        <!-- Steps: Portal -->
+        <div class="d-flex flex-column gap-3 mb-4">
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">1</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Go to
+              <a
+                href="https://envato-buyer.oneoftheprojects.com"
+                target="_blank"
+                style="color: #25c2a0; font-weight: 600"
+                >envato-buyer.oneoftheprojects.com</a
+              >
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">2</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Sign up or login to your account
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">3</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Add your purchase code, domain names, and addons
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">4</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Click <strong>INSTALL</strong> and wait for completion
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">5</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Then click <strong>UPDATE</strong>
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">6</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              If prompted for a password, use
+              <code class="inline">Password@123</code>
+            </p>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Manual Installation -->
+        <h5 class="fw-semibold mb-3">Manual Installation</h5>
+        <div class="d-flex flex-column gap-3 mb-4">
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">1</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Create a Node.js App in your hosting control panel
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">2</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Upload <code class="inline">extract.zip</code> in the file manager
+              and extract it
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">3</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Create a MySQL database and add credentials to the .env file
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">4</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Run <code class="inline">npm install</code> in the app directory
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">5</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Import <code class="inline">install.sql</code> into your database
+            </p>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Default Credentials -->
+        <h5 class="fw-semibold mb-3">Default Login Credentials</h5>
+        <div class="d-flex flex-column gap-3 mb-3">
+          <!-- Admin -->
+          <div
+            class="cred-card"
+            style="
+              border-left: 4px solid var(--primary);
+              background: rgba(25, 118, 210, 0.04);
+              border: 1px solid #dee2e6;
+              border-left: 4px solid var(--primary);
+            "
+          >
+            <div class="fw-bold mb-2">Admin</div>
+            <div class="d-flex gap-2 mb-1">
+              <span class="fw-semibold" style="min-width: 80px">URL</span>
+              <code class="inline">https://domain.com/admin</code>
+            </div>
+            <div class="d-flex gap-2 mb-1">
+              <span class="fw-semibold" style="min-width: 80px">Email</span>
+              <code class="inline">admin@admin.com</code>
+            </div>
+            <div class="d-flex gap-2">
+              <span class="fw-semibold" style="min-width: 80px">Password</span>
+              <code class="inline">Password@123</code>
+            </div>
+          </div>
+
+          <!-- User -->
+          <div
+            class="cred-card"
+            style="
+              border-left: 4px solid var(--success);
+              background: rgba(46, 125, 50, 0.04);
+              border: 1px solid #dee2e6;
+              border-left: 4px solid var(--success);
+            "
+          >
+            <div class="fw-bold mb-2">User</div>
+            <div class="d-flex gap-2 mb-1">
+              <span class="fw-semibold" style="min-width: 80px">URL</span>
+              <code class="inline">https://domain.com/user</code>
+            </div>
+            <div class="d-flex gap-2 mb-1">
+              <span class="fw-semibold" style="min-width: 80px">Email</span>
+              <code class="inline">user@user.com</code>
+            </div>
+            <div class="d-flex gap-2">
+              <span class="fw-semibold" style="min-width: 80px">Password</span>
+              <code class="inline">password</code>
+            </div>
+          </div>
+
+          <!-- Agent -->
+          <div
+            class="cred-card"
+            style="
+              border-left: 4px solid var(--warning);
+              background: rgba(237, 108, 2, 0.04);
+              border: 1px solid #dee2e6;
+              border-left: 4px solid var(--warning);
+            "
+          >
+            <div class="fw-bold mb-2">Agent</div>
+            <div class="d-flex gap-2 mb-1">
+              <span class="fw-semibold" style="min-width: 80px">URL</span>
+              <code class="inline">https://domain.com/agent</code>
+            </div>
+            <div class="d-flex gap-2 mb-1">
+              <span class="fw-semibold" style="min-width: 80px">Email</span>
+              <code class="inline">john@agent.com</code>
+            </div>
+            <div class="d-flex gap-2">
+              <span class="fw-semibold" style="min-width: 80px">Password</span>
+              <code class="inline">password</code>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="alert alert-warning d-flex gap-2"
+          style="border-radius: 10px"
+        >
+          <i
+            class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"
+          ></i>
+          <div class="fw-bold">
+            Change all default passwords immediately after installation.
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+       SETUP META
+  ══════════════════════════════════════ -->
+      <div id="meta" class="section-block">
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="section-heading-icon">
+              <i class="bi bi-diagram-3-fill"></i>
+            </div>
+            <h2
+              class="fw-bold mb-0"
+              style="font-size: clamp(1.4rem, 3vw, 1.75rem)"
+            >
+              Setup Meta (Facebook)
+            </h2>
+          </div>
+          <p
+            class="text-secondary"
+            style="padding-left: 56px; line-height: 1.7; margin-bottom: 0"
+          >
+            Connect WhatsCRM to WhatsApp Cloud API by creating a Meta app and
+            generating a permanent access token.
+          </p>
+        </div>
+
+        <h5 class="fw-semibold mb-3">Create Meta Application</h5>
+        <a
+          class="yt-thumb"
+          href="https://www.youtube.com/watch?v=56KsEFY43a0"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            src="https://img.youtube.com/vi/56KsEFY43a0/maxresdefault.jpg"
+            onerror="
+              this.src = 'https://img.youtube.com/vi/56KsEFY43a0/hqdefault.jpg'
+            "
+            alt="How to Create Meta Application"
+          />
+          <div class="overlay"></div>
+          <div class="play-btn">
+            <div class="play-circle"><div class="play-triangle"></div></div>
+            <span class="play-label">Watch on YouTube</span>
+          </div>
+          <div class="yt-bottom-bar">
+            <span class="yt-title">How to Create Meta Application</span>
+            <span class="yt-badge"
+              ><i class="bi bi-youtube text-danger"></i> YouTube</span
+            >
+          </div>
+        </a>
+
+        <div class="d-flex flex-column gap-3 mb-4">
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">1</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Go to
+              <a
+                href="https://developer.facebook.com"
+                target="_blank"
+                style="color: #25c2a0; font-weight: 600"
+                >developer.facebook.com</a
+              >
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">2</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Create a new app and add WhatsApp product
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">3</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Give necessary permissions to the app
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">4</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Copy App ID and App Secret into WhatsCRM settings
+            </p>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <h5 class="fw-semibold mb-3">Create Permanent Access Token</h5>
+        <a
+          class="yt-thumb"
+          href="https://www.youtube.com/watch?v=asdbklrBwQk"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            src="https://img.youtube.com/vi/asdbklrBwQk/maxresdefault.jpg"
+            onerror="
+              this.src = 'https://img.youtube.com/vi/asdbklrBwQk/hqdefault.jpg'
+            "
+            alt="How to Create Permanent Token"
+          />
+          <div class="overlay"></div>
+          <div class="play-btn">
+            <div class="play-circle"><div class="play-triangle"></div></div>
+            <span class="play-label">Watch on YouTube</span>
+          </div>
+          <div class="yt-bottom-bar">
+            <span class="yt-title">How to Create Permanent Token</span>
+            <span class="yt-badge"
+              ><i class="bi bi-youtube text-danger"></i> YouTube</span
+            >
+          </div>
+        </a>
+
+        <div class="d-flex flex-column gap-3 mb-4">
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">1</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Go to
+              <a
+                href="https://business.facebook.com/settings/system-users"
+                target="_blank"
+                style="color: #25c2a0; font-weight: 600"
+                >Facebook Business → System Users</a
+              >
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">2</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Select your business account
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">3</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Add a new admin system user
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">4</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Assign the WhatsApp Business Account asset and your app
+            </p>
+          </div>
+          <div class="d-flex gap-3 align-items-start">
+            <div class="step-num">5</div>
+            <p class="text-secondary mb-0 pt-1" style="line-height: 1.7">
+              Generate a permanent token with required permissions
+            </p>
+          </div>
+        </div>
+
+        <div class="token-tip">
+          <div class="fw-bold mb-1">💡 Save your token securely</div>
+          <div class="text-secondary small">
+            The permanent access token is required to connect your WhatsApp
+            Business Account. Store it safely — you won't be shown it again.
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+       INCLUDED ADDONS
+  ══════════════════════════════════════ -->
+      <div id="addons" class="section-block">
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="section-heading-icon">
+              <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <h2
+              class="fw-bold mb-0"
+              style="font-size: clamp(1.4rem, 3vw, 1.75rem)"
+            >
+              Included Addons
+            </h2>
+          </div>
+          <p
+            class="text-secondary"
+            style="padding-left: 56px; line-height: 1.7; margin-bottom: 0"
+          >
+            WhatsCRM Ultimate ships with every addon pre-installed. No separate
+            purchases, no manual addon setup — just configure and go.
+          </p>
+        </div>
+
+        <div
+          class="alert alert-success border border-success d-flex gap-2 mb-4"
+          style="border-radius: 10px"
+        >
+          <i class="bi bi-check-circle-fill fs-5 mt-1 flex-shrink-0"></i>
+          <div>
+            <div class="fw-bold">✅ 7 Premium Addons — All Pre-Installed</div>
+            <div class="text-secondary small mt-1">
+              Every addon below is already bundled. Just install WhatsCRM
+              Ultimate and configure each addon from the admin panel.
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Addon 1: AI Chat ── -->
+        <div class="addon-card">
+          <div class="addon-card-header">
+            <div
+              class="addon-icon-box"
+              style="
+                background: rgba(156, 39, 176, 0.13);
+                border: 1.5px solid rgba(156, 39, 176, 0.35);
+                color: #9c27b0;
+              "
+            >
+              <i class="bi bi-rocket-takeoff-fill"></i>
+            </div>
+            <div>
+              <span class="fw-bold fs-5">AI Chat for WhatsApp</span>
+              <span class="badge bg-secondary ms-2">Most Popular</span>
+            </div>
+          </div>
+          <div class="addon-card-body">
+            <p class="text-secondary mb-3" style="line-height: 1.75">
+              Create an AI-powered chatbot using OpenAI GPT models inside
+              WhatsCRM ChatbotFlow. Train it with custom instructions and
+              knowledge base for fully automated, context-aware WhatsApp
+              responses.
+            </p>
+            <div class="row g-2 mb-4">
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >GPT-3.5 &amp; GPT-4 integration</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Custom training &amp; knowledge base</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Context-aware conversations</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Multi-language support</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >ChatbotFlow drag &amp; drop builder</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Easy admin panel config</span
+                  >
+                </div>
+              </div>
+            </div>
+            <a
+              class="yt-thumb"
+              href="https://www.youtube.com/watch?v=yzB1oYRdUHI"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://img.youtube.com/vi/yzB1oYRdUHI/maxresdefault.jpg"
+                onerror="
+                  this.src =
+                    'https://img.youtube.com/vi/yzB1oYRdUHI/hqdefault.jpg'
+                "
+                alt="AI Chat for WhatsApp — Demo"
+              />
+              <div class="overlay"></div>
+              <div class="play-btn">
+                <div class="play-circle"><div class="play-triangle"></div></div>
+                <span class="play-label">Watch on YouTube</span>
+              </div>
+              <div class="yt-bottom-bar">
+                <span class="yt-title">AI Chat for WhatsApp — Demo</span
+                ><span class="yt-badge"
+                  ><i class="bi bi-youtube text-danger"></i> YouTube</span
+                >
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- ── Addon 2: QR Login ── -->
+        <div class="addon-card">
+          <div class="addon-card-header">
+            <div
+              class="addon-icon-box"
+              style="
+                background: rgba(25, 118, 210, 0.13);
+                border: 1.5px solid rgba(25, 118, 210, 0.35);
+                color: #1976d2;
+              "
+            >
+              <i class="bi bi-qr-code-scan"></i>
+            </div>
+            <div>
+              <span class="fw-bold fs-5">WhatsApp QR Login</span>
+              <span class="badge bg-primary ms-2">Included</span>
+            </div>
+          </div>
+          <div class="addon-card-body">
+            <p class="text-secondary mb-3" style="line-height: 1.75">
+              Enable QR-based WhatsApp authentication in WhatsCRM. Supports both
+              official Cloud API and unofficial APIs for chatbot automation and
+              full inbox chat management.
+            </p>
+            <div class="row g-2 mb-4">
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >QR code-based authentication</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Official &amp; unofficial API support</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Full inbox chat functionality</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Chatbot automation support</span
+                  >
+                </div>
+              </div>
+            </div>
+            <a
+              class="yt-thumb"
+              href="https://www.youtube.com/watch?v=9OjHe7oNBy4"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://img.youtube.com/vi/9OjHe7oNBy4/maxresdefault.jpg"
+                onerror="
+                  this.src =
+                    'https://img.youtube.com/vi/9OjHe7oNBy4/hqdefault.jpg'
+                "
+                alt="WhatsApp QR Login — Demo"
+              />
+              <div class="overlay"></div>
+              <div class="play-btn">
+                <div class="play-circle"><div class="play-triangle"></div></div>
+                <span class="play-label">Watch on YouTube</span>
+              </div>
+              <div class="yt-bottom-bar">
+                <span class="yt-title">WhatsApp QR Login — Demo</span
+                ><span class="yt-badge"
+                  ><i class="bi bi-youtube text-danger"></i> YouTube</span
+                >
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- ── Addon 3: Webhook ── -->
+        <div class="addon-card">
+          <div class="addon-card-header">
+            <div
+              class="addon-icon-box"
+              style="
+                background: rgba(237, 108, 2, 0.13);
+                border: 1.5px solid rgba(237, 108, 2, 0.35);
+                color: #ed6c02;
+              "
+            >
+              <i class="bi bi-diagram-3-fill"></i>
+            </div>
+            <div>
+              <span class="fw-bold fs-5">Webhook Automation</span>
+              <span class="badge bg-warning text-dark ms-2">New</span>
+            </div>
+          </div>
+          <div class="addon-card-body">
+            <p class="text-secondary mb-3" style="line-height: 1.75">
+              Automate WooCommerce orders, Shopify alerts, payment
+              notifications, or any webhook-enabled service. Trigger automated
+              WhatsApp messages using the WhatsCRM Flow Builder.
+            </p>
+            <div class="row g-2 mb-4">
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >WooCommerce &amp; Shopify support</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Any webhook-enabled service</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Flow Builder integration</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Real-time event triggering</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Custom webhook endpoints</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Node.js v20+ required</span
+                  >
+                </div>
+              </div>
+            </div>
+            <a
+              class="yt-thumb"
+              href="https://www.youtube.com/watch?v=MRNml7O8aBQ"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://img.youtube.com/vi/MRNml7O8aBQ/maxresdefault.jpg"
+                onerror="
+                  this.src =
+                    'https://img.youtube.com/vi/MRNml7O8aBQ/hqdefault.jpg'
+                "
+                alt="Webhook Automation — Demo"
+              />
+              <div class="overlay"></div>
+              <div class="play-btn">
+                <div class="play-circle"><div class="play-triangle"></div></div>
+                <span class="play-label">Watch on YouTube</span>
+              </div>
+              <div class="yt-bottom-bar">
+                <span class="yt-title">Webhook Automation — Demo</span
+                ><span class="yt-badge"
+                  ><i class="bi bi-youtube text-danger"></i> YouTube</span
+                >
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- ── Addon 4: Embed Login ── -->
+        <div class="addon-card">
+          <div class="addon-card-header">
+            <div
+              class="addon-icon-box"
+              style="
+                background: rgba(2, 136, 209, 0.13);
+                border: 1.5px solid rgba(2, 136, 209, 0.35);
+                color: #0288d1;
+              "
+            >
+              <i class="bi bi-box-arrow-in-right"></i>
+            </div>
+            <div>
+              <span class="fw-bold fs-5">WhatsApp Embed Login</span>
+              <span class="badge bg-info text-white ms-2">Included</span>
+            </div>
+          </div>
+          <div class="addon-card-body">
+            <p class="text-secondary mb-3" style="line-height: 1.75">
+              Connect your WhatsApp Business API account using Facebook's
+              official embedded login. Secure OAuth 2.0 authentication — no
+              manual token setup needed for your end users.
+            </p>
+            <div class="row g-2 mb-4">
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Facebook OAuth 2.0 authentication</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Connect in a few clicks</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Multiple account support</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Secure &amp; official integration</span
+                  >
+                </div>
+              </div>
+            </div>
+            <a
+              class="yt-thumb"
+              href="https://www.youtube.com/watch?v=DLQeilNXnaQ"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://img.youtube.com/vi/DLQeilNXnaQ/maxresdefault.jpg"
+                onerror="
+                  this.src =
+                    'https://img.youtube.com/vi/DLQeilNXnaQ/hqdefault.jpg'
+                "
+                alt="WhatsApp Embed Login — Setup"
+              />
+              <div class="overlay"></div>
+              <div class="play-btn">
+                <div class="play-circle"><div class="play-triangle"></div></div>
+                <span class="play-label">Watch on YouTube</span>
+              </div>
+              <div class="yt-bottom-bar">
+                <span class="yt-title">WhatsApp Embed Login — Setup</span
+                ><span class="yt-badge"
+                  ><i class="bi bi-youtube text-danger"></i> YouTube</span
+                >
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- ── Addon 5: AI Calling ── -->
+        <div class="addon-card">
+          <div class="addon-card-header">
+            <div
+              class="addon-icon-box"
+              style="
+                background: rgba(211, 47, 47, 0.13);
+                border: 1.5px solid rgba(211, 47, 47, 0.35);
+                color: #d32f2f;
+              "
+            >
+              <i class="bi bi-telephone-fill"></i>
+            </div>
+            <div>
+              <span class="fw-bold fs-5">WhatsApp AI Calling Automation</span>
+              <span class="badge bg-danger ms-2">Revolutionary</span>
+            </div>
+          </div>
+          <div class="addon-card-body">
+            <p class="text-secondary mb-3" style="line-height: 1.75">
+              Automate WhatsApp voice calls using OpenAI with natural-sounding
+              voices powered by ElevenLabs. Schedule AI calling broadcasts and
+              handle customer inquiries automatically at scale.
+            </p>
+            <div class="row g-2 mb-3">
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >OpenAI-powered voice calls</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >ElevenLabs natural voices</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >AI calling broadcasts</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Multi-language voice support</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Call recording &amp; transcription</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Ubuntu 20+ or macOS required</span
+                  >
+                </div>
+              </div>
+            </div>
+            <div
+              class="alert alert-warning d-flex gap-2 mb-3"
+              style="border-radius: 10px"
+            >
+              <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+              <div>
+                <div class="fw-bold small">AI Calling — OS Requirement</div>
+                <div class="text-secondary small mt-1">
+                  This addon requires <strong>Ubuntu 20+</strong> or
+                  <strong>macOS</strong>. This only applies to the AI Calling
+                  addon — the rest of WhatsCRM runs on any OS.
+                </div>
+              </div>
+            </div>
+            <a
+              class="yt-thumb"
+              href="https://www.youtube.com/watch?v=n3hfanTuiBE"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://img.youtube.com/vi/n3hfanTuiBE/maxresdefault.jpg"
+                onerror="
+                  this.src =
+                    'https://img.youtube.com/vi/n3hfanTuiBE/hqdefault.jpg'
+                "
+                alt="WhatsApp AI Calling — Demo"
+              />
+              <div class="overlay"></div>
+              <div class="play-btn">
+                <div class="play-circle"><div class="play-triangle"></div></div>
+                <span class="play-label">Watch on YouTube</span>
+              </div>
+              <div class="yt-bottom-bar">
+                <span class="yt-title">WhatsApp AI Calling — Demo</span
+                ><span class="yt-badge"
+                  ><i class="bi bi-youtube text-danger"></i> YouTube</span
+                >
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- ── Addon 6: Telegram ── -->
+        <div class="addon-card">
+          <div class="addon-card-header">
+            <div
+              class="addon-icon-box"
+              style="
+                background: rgba(25, 118, 210, 0.13);
+                border: 1.5px solid rgba(25, 118, 210, 0.35);
+                color: #1976d2;
+              "
+            >
+              <i class="bi bi-telegram"></i>
+            </div>
+            <div>
+              <span class="fw-bold fs-5">Telegram Inbox &amp; Chatbot</span>
+              <span class="badge bg-primary ms-2">Included</span>
+            </div>
+          </div>
+          <div class="addon-card-body">
+            <p class="text-secondary mb-3" style="line-height: 1.75">
+              Connect your Telegram account directly inside WhatsCRM. Manage all
+              Telegram conversations from the same unified dashboard alongside
+              WhatsApp, with full chatbot automation.
+            </p>
+            <div class="row g-2 mb-4">
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Direct Telegram integration</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Unified WhatsApp + Telegram inbox</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Team collaboration support</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Automated chatbot replies</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Real-time message sync</span
+                  >
+                </div>
+              </div>
+            </div>
+            <a
+              class="yt-thumb"
+              href="https://www.youtube.com/watch?v=SriP57mXic0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://img.youtube.com/vi/SriP57mXic0/maxresdefault.jpg"
+                onerror="
+                  this.src =
+                    'https://img.youtube.com/vi/SriP57mXic0/hqdefault.jpg'
+                "
+                alt="Telegram Inbox & Chatbot — Demo"
+              />
+              <div class="overlay"></div>
+              <div class="play-btn">
+                <div class="play-circle"><div class="play-triangle"></div></div>
+                <span class="play-label">Watch on YouTube</span>
+              </div>
+              <div class="yt-bottom-bar">
+                <span class="yt-title">Telegram Inbox &amp; Chatbot — Demo</span
+                ><span class="yt-badge"
+                  ><i class="bi bi-youtube text-danger"></i> YouTube</span
+                >
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- ── Addon 7: Mobile App ── -->
+        <div class="addon-card">
+          <div class="addon-card-header">
+            <div
+              class="addon-icon-box"
+              style="
+                background: rgba(46, 125, 50, 0.13);
+                border: 1.5px solid rgba(46, 125, 50, 0.35);
+                color: #2e7d32;
+              "
+            >
+              <i class="bi bi-phone-fill"></i>
+            </div>
+            <div>
+              <span class="fw-bold fs-5">WhatsCRM Mobile App</span>
+              <span class="badge bg-success ms-2">iOS &amp; Android</span>
+            </div>
+          </div>
+          <div class="addon-card-body">
+            <p class="text-secondary mb-3" style="line-height: 1.75">
+              A full-featured React Native mobile app for iOS and Android.
+              Manage your inbox, chats, and receive real-time push notifications
+              via Firebase — all on the go.
+            </p>
+            <div class="row g-2 mb-4">
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >React Native Expo SDK</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >iOS, Android &amp; macOS</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Firebase push notifications</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Full inbox with tags manager</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Light &amp; Dark mode</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Multi-language support</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Cloud API &amp; QR support</span
+                  >
+                </div>
+              </div>
+            </div>
+            <a
+              class="yt-thumb"
+              href="https://www.youtube.com/watch?v=A8RJYHR33ic"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://img.youtube.com/vi/A8RJYHR33ic/maxresdefault.jpg"
+                onerror="
+                  this.src =
+                    'https://img.youtube.com/vi/A8RJYHR33ic/hqdefault.jpg'
+                "
+                alt="WhatsCRM Mobile App — Demo"
+              />
+              <div class="overlay"></div>
+              <div class="play-btn">
+                <div class="play-circle"><div class="play-triangle"></div></div>
+                <span class="play-label">Watch on YouTube</span>
+              </div>
+              <div class="yt-bottom-bar">
+                <span class="yt-title">WhatsCRM Mobile App — Demo</span
+                ><span class="yt-badge"
+                  ><i class="bi bi-youtube text-danger"></i> YouTube</span
+                >
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+      <!-- /addons -->
+
+      <!-- ══════════════════════════════════════
+       FEATURES
+  ══════════════════════════════════════ -->
+      <div id="features" class="section-block">
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="section-heading-icon">
+              <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <h2
+              class="fw-bold mb-0"
+              style="font-size: clamp(1.4rem, 3vw, 1.75rem)"
+            >
+              Features Overview
+            </h2>
+          </div>
+          <p
+            class="text-secondary"
+            style="padding-left: 56px; line-height: 1.7; margin-bottom: 0"
+          >
+            Everything included in WhatsCRM Ultimate out of the box.
+          </p>
+        </div>
+
+        <div class="row g-3">
+          <!-- Requirements -->
+          <div class="col-12 col-md-6">
+            <div class="card border h-100" style="border-radius: 10px">
+              <div class="card-body p-3">
+                <h6 class="fw-bold mb-3">Requirements</h6>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-primary"></i
+                  ><span class="text-secondary small"
+                    >Shared hosting with Node.js or VPS (recommended)</span
+                  >
+                </div>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-primary"></i
+                  ><span class="text-secondary small">MySQL database</span>
+                </div>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-primary"></i
+                  ><span class="text-secondary small"
+                    >Domain or Subdomain with HTTPS</span
+                  >
+                </div>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-primary"></i
+                  ><span class="text-secondary small"
+                    >Node.js v20+ (v22 recommended)</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admin Features -->
+          <div class="col-12 col-md-6">
+            <div class="card border h-100" style="border-radius: 10px">
+              <div class="card-body p-3">
+                <h6 class="fw-bold mb-3">Admin Features</h6>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >SaaS ready multi-tenant</span
+                  >
+                </div>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >User &amp; plan management</span
+                  >
+                </div>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small">Orders tracking</span>
+                </div>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Dynamic frontend pages</span
+                  >
+                </div>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small"
+                    >Full web translation</span
+                  >
+                </div>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small">Auto login as user</span>
+                </div>
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-success"></i
+                  ><span class="text-secondary small">App config panel</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Features -->
+          <div class="col-12">
+            <div class="card border" style="border-radius: 10px">
+              <div class="card-body p-3">
+                <h6 class="fw-bold mb-3">User Features</h6>
+                <div class="row g-1">
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small">WhatsApp CRM</span>
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Ticket management</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Chats management</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Online WhatsApp chat (Cloud API)</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Message delivery tracking</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Automate chatbot</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Chatbot Drag &amp; Drop builder</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >WhatsApp Broadcasting</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Broadcast tracking &amp; reports</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Phonebook management</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small">Rich dashboard</span>
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small">API access</span>
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >AI Chat (OpenAI GPT)</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >QR WhatsApp login</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Webhook automation</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >WhatsApp Embed Login</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >AI Voice Calling</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Telegram Inbox &amp; Chatbot</span
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <div class="feature-check">
+                      <i class="bi bi-check-circle-fill text-primary"></i
+                      ><span class="text-secondary small"
+                        >Mobile App (iOS &amp; Android)</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /features -->
+
+      <!-- ══════════════════════════════════════
+       SUPPORT
+  ══════════════════════════════════════ -->
+      <div id="support" style="margin-bottom: 48px">
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="section-heading-icon">
+              <i class="bi bi-headset"></i>
+            </div>
+            <h2
+              class="fw-bold mb-0"
+              style="font-size: clamp(1.4rem, 3vw, 1.75rem)"
+            >
+              Support &amp; Community
+            </h2>
+          </div>
+          <p
+            class="text-secondary"
+            style="padding-left: 56px; line-height: 1.7; margin-bottom: 0"
+          >
+            Need help? Our team is ready to assist. Don't hesitate to reach out.
+          </p>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <!-- WhatsApp Support -->
+          <div class="col-12 col-md-6">
+            <div
+              class="card h-100 p-3"
+              style="border-radius: 12px; border: 1.5px solid #25d366"
+            >
+              <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                  <div
+                    class="support-icon-box"
+                    style="background: rgba(37, 211, 102, 0.12)"
+                  >
+                    <i class="bi bi-headset fs-4" style="color: #25d366"></i>
+                  </div>
+                  <span class="fw-bold fs-6">WhatsApp Support</span>
+                </div>
+                <p class="text-secondary small mb-3" style="line-height: 1.7">
+                  Get direct support from our team. We typically respond within
+                  24 hours on business days.
+                </p>
+                <a
+                  href="https://wa.me/918430088300?text=hello%20there,%20support%20needed%20for%20WhatsCRM%20Ultimate"
+                  target="_blank"
+                  class="btn fw-bold text-white"
+                  style="
+                    background: #25d366;
+                    border: none;
+                    border-radius: 8px;
+                    text-transform: none;
+                  "
+                >
+                  Contact via WhatsApp <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Community -->
+          <div class="col-12 col-md-6">
+            <div
+              class="card h-100 p-3"
+              style="border-radius: 12px; border: 1.5px solid var(--primary)"
+            >
+              <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                  <div
+                    class="support-icon-box"
+                    style="background: rgba(37, 194, 160, 0.12)"
+                  >
+                    <i class="bi bi-people-fill fs-4 text-primary"></i>
+                  </div>
+                  <span class="fw-bold fs-6">Community Channel</span>
+                </div>
+                <p class="text-secondary small mb-3" style="line-height: 1.7">
+                  Join our WhatsApp community for latest updates, freebies,
+                  tips, and announcements.
+                </p>
+                <a
+                  href="https://whatsapp.com/channel/0029VaQN2HjCxoAsvK3AeH3V"
+                  target="_blank"
+                  class="btn btn-outline-primary fw-bold"
+                  style="border-radius: 8px; text-transform: none"
+                >
+                  Join Community <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Before contacting support -->
+        <div class="card border p-3" style="border-radius: 12px">
+          <div class="card-body">
+            <h6 class="fw-bold mb-3">
+              Before contacting support, please have ready:
+            </h6>
+            <div class="row g-2">
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-primary"></i>
+                  <span class="text-secondary small"
+                    >Your WhatsCRM version number</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-primary"></i>
+                  <span class="text-secondary small"
+                    >Detailed description of the issue</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-primary"></i>
+                  <span class="text-secondary small"
+                    >Screenshots or error messages</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-primary"></i>
+                  <span class="text-secondary small"
+                    >Steps already taken to resolve</span
+                  >
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <div class="feature-check">
+                  <i class="bi bi-check-circle-fill text-primary"></i>
+                  <span class="text-secondary small"
+                    >Node.js version &amp; OS details</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /support -->
+    </div>
+    <!-- /container -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // ── Active nav tab on click ──
+      function setActive(el) {
+        document
+          .querySelectorAll(".nav-tab")
+          .forEach((t) => t.classList.remove("active"));
+        el.classList.add("active");
+      }
+
+      // ── Update active tab on scroll ──
+      const sections = [
+        "installation",
+        "meta",
+        "addons",
+        "features",
+        "support",
+      ];
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const id = entry.target.id;
+              document.querySelectorAll(".nav-tab").forEach((t) => {
+                t.classList.toggle(
+                  "active",
+                  t.getAttribute("href") === "#" + id,
+                );
+              });
+            }
+          });
+        },
+        { rootMargin: "-20% 0px -70% 0px", threshold: 0 },
+      );
+
+      sections.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el);
+      });
+
+      // ── Smooth scroll on nav click ──
+      document.querySelectorAll(".nav-tab").forEach((tab) => {
+        tab.addEventListener("click", function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute("href"));
+          if (target) {
+            const offset =
+              document.getElementById("sticky-nav").offsetHeight + 16;
+            const top =
+              target.getBoundingClientRect().top + window.scrollY - offset;
+            window.scrollTo({ top, behavior: "smooth" });
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

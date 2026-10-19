@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+uploads/
+client/public/media/
+*.log
+**/client/public/media/
+**/uploads/
+**/node_modules/
+**/.env
+*.sql
+.DS_Store
+**/.DS_Store

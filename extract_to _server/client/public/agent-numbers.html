@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Numbers</title>
+    <style>
+      :root {
+        --bg: #f4f6f8;
+        --card: #ffffff;
+        --text: #16202a;
+        --muted: #697886;
+        --line: #dde3e9;
+        --brand: #128c4a;
+        --brand-soft: #e7f5ed;
+        --danger: #c0392b;
+        --radius: 12px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #10161c;
+          --card: #18212a;
+          --text: #e8edf2;
+          --muted: #93a1ae;
+          --line: #2a3742;
+          --brand: #2cc06b;
+          --brand-soft: #16302250;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #10161c;
+        --card: #18212a;
+        --text: #e8edf2;
+        --muted: #93a1ae;
+        --line: #2a3742;
+        --brand: #2cc06b;
+        --brand-soft: #16302250;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Tahoma, system-ui, -apple-system, sans-serif;
+        line-height: 1.6;
+      }
+      .wrap { max-width: 920px; margin: 0 auto; padding: 24px 16px 64px; }
+
+      header { margin-bottom: 24px; }
+      .top { display: flex; align-items: flex-start; gap: 12px; }
+      h1 { font-size: 1.5rem; margin: 0 0 4px; flex: 1; }
+      .sub { color: var(--muted); font-size: 0.92rem; margin: 0; }
+      .sub + .sub { margin-top: 8px; }
+
+      #lang {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 5px 14px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        flex-shrink: 0;
+      }
+      #lang:hover { color: var(--brand); border-color: var(--brand); }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+
+      .agent-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      .avatar {
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        background: var(--brand-soft);
+        color: var(--brand);
+        display: grid; place-items: center;
+        font-weight: 700; flex-shrink: 0;
+      }
+      .agent-id { min-width: 0; }
+      .agent-mail {
+        font-weight: 600;
+        font-size: 0.95rem;
+        word-break: break-all;
+        direction: ltr;
+      }
+      .agent-meta { color: var(--muted); font-size: 0.82rem; }
+      .count {
+        margin-inline-start: auto;
+        background: var(--brand-soft);
+        color: var(--brand);
+        border-radius: 999px;
+        padding: 2px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .numbers-label { color: var(--muted); font-size: 0.82rem; margin-bottom: 8px; }
+      .numbers { display: grid; gap: 8px; }
+      @media (min-width: 620px) { .numbers { grid-template-columns: 1fr 1fr; } }
+      label.num {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+      label.num:hover { border-color: var(--brand); }
+      label.num input { width: 18px; height: 18px; accent-color: var(--brand); flex-shrink: 0; }
+      .num-title { font-weight: 600; font-size: 0.9rem; }
+      .num-digits { color: var(--muted); font-size: 0.8rem; direction: ltr; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #9aa6b2; flex-shrink: 0; }
+      .dot.on { background: var(--brand); }
+
+      .row { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+      button.act {
+        background: var(--brand);
+        color: #fff;
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 20px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      button.act:disabled { opacity: 0.55; cursor: default; }
+      button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+      .status { font-size: 0.86rem; }
+      .status.ok { color: var(--brand); }
+      .status.err { color: var(--danger); }
+
+      .notice {
+        border: 1px solid var(--line);
+        border-inline-start: 4px solid var(--brand);
+        background: var(--card);
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+      }
+      .notice.bad { border-inline-start-color: var(--danger); }
+
+      input[type="email"], input[type="password"] {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="top">
+          <h1 id="h1"></h1>
+          <button id="lang" type="button"></button>
+        </div>
+        <p class="sub" id="sub1"></p>
+        <p class="sub" id="sub2"></p>
+      </header>
+
+      <div id="app"></div>
+    </div>
+
+    <script>
+      /* ---------- i18n ---------------------------------------------------- */
+
+      var DICT = {
+        en: {
+          dir: "ltr",
+          htmlLang: "en",
+          switchTo: "العربية",
+          title: "Assign WhatsApp Numbers to Agents",
+          sub1:
+            "An agent assigned to a number automatically sees every conversation that arrives on it. Assigning an agent to a single chat keeps working as before.",
+          sub2:
+            "<strong>Note:</strong> the numbers below are the WhatsApp numbers connected to the system (the ones customers message), not the agents' personal phone numbers.",
+          loginHint:
+            "Sign in with the owner account (the same credentials as the user panel).",
+          email: "Email",
+          password: "Password",
+          signIn: "Sign in",
+          signingIn: "Signing in…",
+          badCreds: "Invalid credentials",
+          noServer: "Could not reach the server",
+          loading: "Loading…",
+          noInstances:
+            "No WhatsApp numbers are connected to this account. Connect one first from the WhatsApp QR section.",
+          noAgents:
+            "No agents yet. Add an agent first from the Agents section in the user panel.",
+          noName: "No name",
+          mobileIs: "mobile:",
+          numbersLabel:
+            "WhatsApp numbers connected to the system — pick the ones this agent works on:",
+          countSuffix: "selected",
+          save: "Save",
+          clearAll: "Clear all",
+          saving: "Saving…",
+          saved: "✅ Saved — the agent needs to refresh their page",
+          saveFailed: "Could not save",
+          sessionExpired: "Session expired. Please sign in again.",
+          error: "Something went wrong",
+        },
+        ar: {
+          dir: "rtl",
+          htmlLang: "ar",
+          switchTo: "English",
+          title: "تعيين أرقام واتساب للوكلاء",
+          sub1:
+            "الوكيل المُعيَّن على رقم يرى جميع المحادثات الواردة على هذا الرقم تلقائيًا. ويظل التعيين اليدوي على محادثة بعينها يعمل كما هو.",
+          sub2:
+            "<strong>تنبيه:</strong> الأرقام المعروضة أدناه هي أرقام واتساب المتصلة بالنظام (التي يراسلك عليها العملاء)، وليست أرقام هواتف الوكلاء الشخصية.",
+          loginHint:
+            "يُرجى تسجيل الدخول بحساب المالك (نفس بيانات لوحة المستخدم).",
+          email: "البريد الإلكتروني",
+          password: "كلمة المرور",
+          signIn: "تسجيل الدخول",
+          signingIn: "جارٍ تسجيل الدخول…",
+          badCreds: "بيانات غير صحيحة",
+          noServer: "تعذّر الاتصال بالخادم",
+          loading: "جارٍ التحميل…",
+          noInstances:
+            "لا توجد أرقام واتساب مرتبطة بهذا الحساب. يُرجى ربط رقم أولًا من قسم WhatsApp QR.",
+          noAgents:
+            "لا يوجد وكلاء. يُرجى إضافة وكيل أولًا من قسم Agents في لوحة المستخدم.",
+          noName: "بدون اسم",
+          mobileIs: "موبايله:",
+          numbersLabel:
+            "أرقام واتساب المتصلة بالنظام — حدِّد ما يعمل عليه هذا الوكيل:",
+          countSuffix: "من الأرقام",
+          save: "حفظ",
+          clearAll: "إلغاء تحديد الكل",
+          saving: "جارٍ الحفظ…",
+          saved: "✅ تم الحفظ — على الوكيل تحديث الصفحة",
+          saveFailed: "تعذّر الحفظ",
+          sessionExpired: "انتهت الجلسة. يُرجى تسجيل الدخول مجددًا.",
+          error: "حدث خطأ",
+        },
+      };
+
+      var OVERRIDE_KEY = "agent_numbers_lang";
+      var lang, T;
+
+      /** Follows the panel's own language unless the page toggle overrode it. */
+      function detectLang() {
+        try {
+          var forced = localStorage.getItem(OVERRIDE_KEY);
+          if (forced === "en" || forced === "ar") return forced;
+
+          var sys = (localStorage.getItem("language") || "english").toLowerCase();
+          if (sys.indexOf("arab") !== -1 || sys.indexOf("hebrew") !== -1) return "ar";
+        } catch (e) {}
+        return "en";
+      }
+
+      function applyLang() {
+        lang = detectLang();
+        T = DICT[lang];
+
+        document.documentElement.lang = T.htmlLang;
+        document.documentElement.dir = T.dir;
+        document.title = T.title;
+
+        document.getElementById("h1").textContent = T.title;
+        document.getElementById("sub1").textContent = T.sub1;
+        document.getElementById("sub2").innerHTML = T.sub2;
+        document.getElementById("lang").textContent = T.switchTo;
+      }
+
+      document.getElementById("lang").onclick = function () {
+        try {
+          localStorage.setItem(OVERRIDE_KEY, lang === "en" ? "ar" : "en");
+        } catch (e) {}
+        applyLang();
+        load();
+      };
+
+      /* ---------- helpers -------------------------------------------------- */
+
+      var app = document.getElementById("app");
+      var TOKEN_KEY = "wacrm_user";
+
+      function token() {
+        try {
+          return localStorage.getItem(TOKEN_KEY) || "";
+        } catch (e) {
+          return "";
+        }
+      }
+
+      function esc(s) {
+        return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+      }
+
+      function api(path, options) {
+        options = options || {};
+        return fetch("/api/agent_numbers" + path, {
+          method: options.method || "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token(),
+          },
+          body: options.body ? JSON.stringify(options.body) : undefined,
+        }).then(function (r) {
+          return r.json();
+        });
+      }
+
+      /* ---------- views ---------------------------------------------------- */
+
+      function showLogin(message) {
+        app.innerHTML =
+          '<div class="notice' + (message ? " bad" : "") + '">' +
+          esc(message || T.loginHint) +
+          "</div>" +
+          '<div class="card">' +
+          '<input type="email" id="em" placeholder="' + esc(T.email) + '" autocomplete="username" />' +
+          '<input type="password" id="pw" placeholder="' + esc(T.password) + '" autocomplete="current-password" />' +
+          '<div class="row"><button class="act" id="go">' + esc(T.signIn) +
+          '</button><span class="status" id="st"></span></div>' +
+          "</div>";
+
+        document.getElementById("go").onclick = function () {
+          var btn = this;
+          var st = document.getElementById("st");
+          btn.disabled = true;
+          st.textContent = T.signingIn;
+          st.className = "status";
+
+          fetch("/api/user/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: document.getElementById("em").value.trim(),
+              password: document.getElementById("pw").value,
+            }),
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              if (d && d.success && d.token) {
+                try { localStorage.setItem(TOKEN_KEY, d.token); } catch (e) {}
+                load();
+              } else {
+                btn.disabled = false;
+                st.textContent = (d && d.msg) || T.badCreds;
+                st.className = "status err";
+              }
+            })
+            .catch(function () {
+              btn.disabled = false;
+              st.textContent = T.noServer;
+              st.className = "status err";
+            });
+        };
+      }
+
+      function render(data) {
+        var instances = data.instances || [];
+        var agents = data.agents || [];
+        var assignments = data.assignments || {};
+
+        if (!instances.length) {
+          app.innerHTML = '<div class="notice bad">' + esc(T.noInstances) + "</div>";
+          return;
+        }
+        if (!agents.length) {
+          app.innerHTML = '<div class="notice bad">' + esc(T.noAgents) + "</div>";
+          return;
+        }
+
+        var html = "";
+
+        agents.forEach(function (ag) {
+          var mine = assignments[ag.uid] || [];
+          var initial = (ag.name || ag.email || "?").trim().charAt(0).toUpperCase();
+
+          html +=
+            '<div class="card" data-agent="' + esc(ag.uid) + '">' +
+            '<div class="agent-head">' +
+            '<div class="avatar">' + esc(initial) + "</div>" +
+            '<div class="agent-id">' +
+            '<div class="agent-mail">' + esc(ag.email || "") + "</div>" +
+            '<div class="agent-meta">' + esc(ag.name || T.noName) +
+            (ag.mobile
+              ? " · " + esc(T.mobileIs) + ' <span dir="ltr">' + esc(ag.mobile) + "</span>"
+              : "") +
+            "</div></div>" +
+            '<span class="count">' + mine.length + " " + esc(T.countSuffix) + "</span>" +
+            "</div>" +
+            '<div class="numbers-label">' + esc(T.numbersLabel) + "</div>" +
+            '<div class="numbers">';
+
+          instances.forEach(function (ins) {
+            if (!ins.number) return;
+            var checked = mine.indexOf(String(ins.number)) !== -1 ? " checked" : "";
+            var on = String(ins.status || "").toLowerCase().indexOf("connect") !== -1;
+            html +=
+              '<label class="num">' +
+              '<input type="checkbox" value="' + esc(ins.number) + '"' + checked + " />" +
+              '<span class="dot' + (on ? " on" : "") + '"></span>' +
+              '<span><span class="num-title">' + esc(ins.title) + "</span><br>" +
+              '<span class="num-digits">' + esc(ins.number) + "</span></span>" +
+              "</label>";
+          });
+
+          html +=
+            "</div>" +
+            '<div class="row"><button class="act save">' + esc(T.save) + "</button>" +
+            '<button class="act ghost clear">' + esc(T.clearAll) + "</button>" +
+            '<span class="status"></span></div>' +
+            "</div>";
+        });
+
+        app.innerHTML = html;
+        wire();
+      }
+
+      function wire() {
+        Array.prototype.forEach.call(document.querySelectorAll("[data-agent]"), function (card) {
+          var agentUid = card.getAttribute("data-agent");
+          var boxes = card.querySelectorAll('input[type="checkbox"]');
+          var status = card.querySelector(".status");
+          var count = card.querySelector(".count");
+
+          function refreshCount() {
+            var n = 0;
+            Array.prototype.forEach.call(boxes, function (b) { if (b.checked) n++; });
+            count.textContent = n + " " + T.countSuffix;
+          }
+
+          Array.prototype.forEach.call(boxes, function (b) {
+            b.onchange = refreshCount;
+          });
+
+          card.querySelector(".clear").onclick = function () {
+            Array.prototype.forEach.call(boxes, function (b) { b.checked = false; });
+            refreshCount();
+          };
+
+          card.querySelector(".save").onclick = function () {
+            var btn = this;
+            var numbers = [];
+            Array.prototype.forEach.call(boxes, function (b) {
+              if (b.checked) numbers.push(b.value);
+            });
+
+            btn.disabled = true;
+            status.textContent = T.saving;
+            status.className = "status";
+
+            api("/set", { method: "POST", body: { agent_uid: agentUid, numbers: numbers } })
+              .then(function (d) {
+                btn.disabled = false;
+                if (d && d.success) {
+                  status.textContent = T.saved;
+                  status.className = "status ok";
+                } else {
+                  status.textContent = (d && d.msg) || T.saveFailed;
+                  status.className = "status err";
+                }
+              })
+              .catch(function () {
+                btn.disabled = false;
+                status.textContent = T.noServer;
+                status.className = "status err";
+              });
+          };
+        });
+      }
+
+      function load() {
+        if (!token()) return showLogin();
+
+        app.innerHTML = '<div class="notice">' + esc(T.loading) + "</div>";
+
+        api("/overview")
+          .then(function (d) {
+            if (d && d.success) return render(d.data);
+            var msg = (d && d.msg) || "";
+            if (/token|Unauthorized|expired/i.test(msg)) {
+              try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+              return showLogin(T.sessionExpired);
+            }
+            app.innerHTML = '<div class="notice bad">' + esc(msg || T.error) + "</div>";
+          })
+          .catch(function () {
+            app.innerHTML = '<div class="notice bad">' + esc(T.noServer) + "</div>";
+          });
+      }
+
+      applyLang();
+      load();
+    </script>
+  </body>
+</html>
