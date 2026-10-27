@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ربط أرقام الواتساب بكود</title>
+<style>
+  :root { --bg:#f4f6f8; --card:#fff; --ink:#1d2329; --muted:#66707a; --line:#e3e7eb; --ok:#1a8f4c; --bad:#c0392b; --acc:#128c7e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111417; --card:#1b2026; --ink:#e8ecef; --muted:#9aa4ad; --line:#2a3138; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: system-ui, "Segoe UI", Tahoma, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p.lead { color: var(--muted); margin: 0 0 20px; line-height: 1.7; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+  .row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .grow { flex:1; min-width: 160px; }
+  .title { font-weight: 700; }
+  .num { color: var(--muted); direction: ltr; unicode-bidi: embed; font-size: 14px; }
+  .pill { font-size: 12px; padding: 2px 8px; border-radius: 99px; border:1px solid var(--line); }
+  .pill.on { color: var(--ok); border-color: var(--ok); }
+  .pill.off { color: var(--bad); border-color: var(--bad); }
+  input { width: 100%; padding: 9px 10px; border:1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font-size: 15px; }
+  input.ph { width: 170px; direction: ltr; }
+  button { background: var(--acc); color:#fff; border:0; border-radius: 8px; padding: 9px 14px; font-size: 14px; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  .code { margin-top: 12px; padding: 14px; border-radius: 10px; border: 2px dashed var(--acc); text-align: center; }
+  .code b { display:block; font-size: 34px; letter-spacing: 6px; direction: ltr; font-family: ui-monospace, Consolas, monospace; }
+  .steps { margin: 10px 0 0; padding-inline-start: 20px; color: var(--muted); line-height: 1.8; font-size: 14px; text-align: start; }
+  .err { color: var(--bad); margin-top: 8px; font-size: 14px; }
+  .login { max-width: 360px; }
+  .login input { margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ربط أرقام الواتساب بكود</h1>
+  <p class="lead">لرقم فاصل ومحتاج يتربط من غير QR: اضغط <b>اطلب كود</b>، وابعت الكود لصاحب الموبايل، وهو يكتبه في واتساب. الكود صالح دقيقتين تقريبًا.</p>
+  <div id="app"></div>
+</main>
+<script>
+(function () {
+  "use strict";
+  var TOKEN_KEY = "wacrm_user";
+  var app = document.getElementById("app");
+
+  function token() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]; }); }
+  function api(method, path, body) {
+    return fetch("/api/qr_pairing" + path, {
+      method: method,
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token() },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) { return r.json(); });
+  }
+
+  function loginForm(msg) {
+    app.innerHTML =
+      '<div class="card login"><div class="title">سجّل دخول بحساب الأدمن</div><br>' +
+      '<input id="em" type="email" placeholder="Email">' +
+      '<input id="pw" type="password" placeholder="Password">' +
+      '<button id="go">دخول</button><div class="err" id="st">' + esc(msg || "") + "</div></div>";
+    document.getElementById("go").onclick = function () {
+      fetch("/api/user/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: document.getElementById("em").value.trim(), password: document.getElementById("pw").value })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.success && d.token) { try { localStorage.setItem(TOKEN_KEY, d.token); } catch (e) {} load(); }
+        else document.getElementById("st").textContent = (d && d.msg) || "بيانات غلط";
+      }).catch(function () { document.getElementById("st").textContent = "السيرفر مش بيرد"; });
+    };
+  }
+
+  function load() {
+    if (!token()) return loginForm();
+    app.textContent = "جاري التحميل…";
+    api("GET", "/list").then(function (d) {
+      if (!d || !d.success) return loginForm(d && d.msg);
+      var list = d.data || [];
+      if (!list.length) { app.textContent = "مفيش أرقام."; return; }
+      app.innerHTML = "";
+      list.forEach(function (ins) { app.appendChild(row(ins)); });
+    }).catch(function () { app.textContent = "السيرفر مش بيرد."; });
+  }
+
+  function row(ins) {
+    var on = ins.status === "ACTIVE";
+    var el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML =
+      '<div class="row">' +
+        '<div class="grow"><div class="title">' + esc(ins.title || "—") + '</div><div class="num">+' + esc(ins.number || "") + "</div></div>" +
+        '<span class="pill ' + (on ? "on" : "off") + '">' + (on ? "متصل" : "غير متصل") + "</span>" +
+        '<input class="ph" placeholder="رقم الموبايل" value="' + esc(ins.number || "") + '">' +
+        '<button class="code-btn">' + (on ? "إعادة ربط" : "اطلب كود") + "</button>" +
+        '<button class="share-btn" style="background:#5b6670">رابط للفرع</button>' +
+      "</div><div class=\"out\"></div>";
+    var btn = el.querySelector(".code-btn");
+    var shareBtn = el.querySelector(".share-btn");
+    shareBtn.onclick = function () {
+      var out = el.querySelector(".out");
+      shareBtn.disabled = true;
+      api("POST", "/share", { uniqueId: ins.uniqueId }).then(function (d) {
+        shareBtn.disabled = false;
+        if (!d || !d.success) { out.innerHTML = '<div class="err">' + esc((d && d.msg) || "حصل خطأ") + "</div>"; return; }
+        out.innerHTML =
+          '<div class="code" style="text-align:start">' +
+          '<div style="margin-bottom:6px">ابعت الرابط ده لحد معاه موبايل الرقم. صالح ' + esc(d.data.hours) + " ساعة، ولرقم <b>" + esc(ins.title || "") + "</b> بس.</div>" +
+          '<input readonly value="' + esc(d.data.url) + '" style="direction:ltr" onclick="this.select()">' +
+          '<button class="copy" style="margin-top:8px">نسخ الرابط</button></div>';
+        out.querySelector(".copy").onclick = function () {
+          var inp = out.querySelector("input"); inp.select();
+          try { navigator.clipboard.writeText(inp.value); } catch (e) { document.execCommand("copy"); }
+          this.textContent = "اتنسخ ✓";
+        };
+      }).catch(function () { shareBtn.disabled = false; out.innerHTML = '<div class="err">السيرفر مش بيرد</div>'; });
+    };
+    var out = el.querySelector(".out");
+    btn.onclick = function () {
+      if (on && !confirm("الرقم ده متصل. متأكد إنك عايز تعمل له ربط جديد؟")) return;
+      btn.disabled = true;
+      out.innerHTML = '<div class="err" style="color:var(--muted)">بيطلب الكود من واتساب… (لحد 25 ثانية)</div>';
+      api("POST", "/code", { uniqueId: ins.uniqueId, phone: el.querySelector(".ph").value })
+        .then(function (d) {
+          btn.disabled = false;
+          if (!d || !d.success) { out.innerHTML = '<div class="err">' + esc((d && d.msg) || "حصل خطأ") + "</div>"; return; }
+          out.innerHTML =
+            '<div class="code"><b>' + esc(d.data.code) + "</b>" +
+            '<ol class="steps">' +
+              "<li>على موبايل الرقم: واتساب ← الإعدادات ← <b>الأجهزة المرتبطة</b>.</li>" +
+              "<li>لو فيه جهاز قديم للسيستم: اضغط عليه ← تسجيل الخروج.</li>" +
+              "<li>اضغط <b>ربط جهاز</b> ← تحت الكاميرا: <b>الربط برقم الهاتف بدلاً من ذلك</b>.</li>" +
+              "<li>اكتب الكود ده. لو انتهى، اطلب كود جديد.</li>" +
+            "</ol></div>";
+        })
+        .catch(function () { btn.disabled = false; out.innerHTML = '<div class="err">السيرفر مش بيرد</div>'; });
+    };
+    return el;
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Webhook Status</title>
+    <style>
+      body { font-family: Tahoma, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; line-height: 1.8; }
+    </style>
+  </head>
+  <body>
+    <p id="msg">جارٍ الفحص…</p>
+
+    <script>
+      // One plain-language diagnosis of why Facebook / Instagram messages
+      // may not be arriving. Re-checks every 10 seconds.
+      var msg = document.getElementById("msg");
+
+      function show(text) { msg.textContent = text; }
+
+      function get(url) {
+        var token = "";
+        try { token = localStorage.getItem("wacrm_user") || ""; } catch (e) {}
+        return fetch(url, { headers: { Authorization: "Bearer " + token } })
+          .then(function (r) { return r.json(); });
+      }
+
+      var REASON = {
+        accepted: "✅ آخر رسالة وصلت للمنصة بنجاح. لو مش ظاهرة في الـ Inbox، اعمل Reset للفلاتر.",
+        unknown_account: "❌ ميتا بعت الرسالة، بس رقم الحساب اللي جاي منه مش متسجل في المنصة. اربط الصفحة والإنستا من جديد من Messenger Accounts بنفس الحساب ده.",
+        bad_signature: "❌ ميتا بعت الرسالة بس السيرفر رفضها: الـ App Secret المتسجل في إعدادات الأدمن مش بتاع نفس التطبيق.",
+        ignored: "⚠️ رسالة إنستجرام اتبعتت على لينك الماسنجر. في إعدادات Instagram على Meta لازم اللينك يكون /api/insta/webhook/...",
+      };
+
+      function check() {
+        get("/api/agent_accounts/overview")
+          .then(function (d) {
+            if (!d || !d.success) {
+              return show("❌ سجّل دخول على المنصة الأول بحساب المالك، وبعدين افتح الصفحة دي تاني.");
+            }
+
+            var linked = (d.data.accounts || []).filter(function (a) {
+              return a.channel === "instagram" || a.channel === "messenger";
+            });
+            if (!linked.length) {
+              return show("❌ الحساب اللي أنت داخل بيه مفيهوش صفحات فيسبوك ولا إنستجرام مربوطة. الصفحات غالبًا مربوطة على حساب تاني في المنصة: ادخل بالحساب ده، أو اربطها من Messenger Accounts هنا.");
+            }
+
+            return get("/api/insta/webhook-log").then(function (log) {
+              if (!log || !log.success) {
+                return show("❌ السيرفر لسه ما اتعملوش Restart بعد رفع الملفات الجديدة. اعمل Restart وافتح الصفحة تاني.");
+              }
+              var last = (log.data || [])[0];
+              if (!last) {
+                return show("❌ مفيش ولا رسالة وصلت من ميتا للسيرفر. ابعت رسالة تجربة واستنى 10 ثواني. لو فضلت الرسالة دي، يبقى إعداد الـ Webhook على Meta ناقص (اللينك أو الاشتراك في messages أو ربط الصفحة).");
+              }
+              show(REASON[last.outcome] || last.outcome);
+            });
+          })
+          .catch(function () {
+            show("❌ السيرفر لسه ما اتعملوش Restart بعد رفع الملفات الجديدة. اعمل Restart وافتح الصفحة تاني.");
+          });
+      }
+
+      check();
+      setInterval(check, 10000);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>ربط رقم الواتساب</title>
+<style>
+  :root { --bg:#f4f6f8; --card:#fff; --ink:#1d2329; --muted:#66707a; --line:#e3e7eb; --ok:#1a8f4c; --bad:#c0392b; --acc:#128c7e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111417; --card:#1b2026; --ink:#e8ecef; --muted:#9aa4ad; --line:#2a3138; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: system-ui, "Segoe UI", Tahoma, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 21px; margin: 0 0 4px; }
+  .num { color: var(--muted); direction: ltr; unicode-bidi: embed; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 14px; }
+  .tabs { display:flex; gap:8px; margin-top: 16px; }
+  .tabs button { flex:1; background: var(--card); color: var(--ink); border:1px solid var(--line); }
+  .tabs button.on { background: var(--acc); color:#fff; border-color: var(--acc); }
+  button { background: var(--acc); color:#fff; border:0; border-radius: 8px; padding: 11px 14px; font-size: 15px; cursor: pointer; width: 100%; }
+  button:disabled { opacity: .6; }
+  input { width:100%; padding: 10px; border:1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font-size: 16px; direction: ltr; margin-bottom: 10px; }
+  .code b { display:block; text-align:center; font-size: 36px; letter-spacing: 6px; direction:ltr; font-family: ui-monospace, Consolas, monospace; margin: 8px 0; }
+  .qr { text-align:center; } .qr img { width: 260px; max-width: 100%; background:#fff; padding: 8px; border-radius: 8px; }
+  ol { padding-inline-start: 20px; line-height: 1.9; color: var(--muted); font-size: 15px; margin: 10px 0 0; }
+  .msg { margin-top: 10px; font-size: 14px; color: var(--muted); }
+  .err { color: var(--bad); } .ok { color: var(--ok); font-size: 20px; font-weight: 700; text-align:center; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">ربط رقم الواتساب</h1>
+  <div class="num" id="num"></div>
+  <div id="app"><div class="msg">جاري التحميل…</div></div>
+</main>
+<script>
+(function () {
+  "use strict";
+  var T = new URLSearchParams(location.search).get("t") || "";
+  var API = "/api/qr_pairing/public";
+  var app = document.getElementById("app");
+  var poll = null, mode = "code", info = null;
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]; }); }
+  function get() { return fetch(API + "/status?t=" + encodeURIComponent(T)).then(function (r) { return r.json(); }); }
+  function post(path, body) {
+    body = body || {}; body.t = T;
+    return fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(function (r) { return r.json(); });
+  }
+  function stopPoll() { if (poll) { clearInterval(poll); poll = null; } }
+
+  function done() {
+    stopPoll();
+    app.innerHTML = '<div class="card"><div class="ok">✅ تم ربط الرقم</div><div class="msg" style="text-align:center">تقدر تقفل الصفحة دي.</div></div>';
+  }
+
+  function watchConnected() {
+    stopPoll();
+    poll = setInterval(function () {
+      get().then(function (d) {
+        if (d && d.success && d.data.connected) return done();
+        if (mode === "qr" && d && d.success && d.data.qr) {
+          var img = document.getElementById("qrimg");
+          if (img && img.getAttribute("src") !== d.data.qr) img.setAttribute("src", d.data.qr);
+        }
+      }).catch(function () {});
+    }, 2500);
+  }
+
+  function render() {
+    app.innerHTML =
+      '<div class="tabs"><button id="tc" class="' + (mode === "code" ? "on" : "") + '">بكود (من نفس الموبايل)</button>' +
+      '<button id="tq" class="' + (mode === "qr" ? "on" : "") + '">بـ QR (من جهاز تاني)</button></div>' +
+      '<div class="card" id="box"></div>';
+    document.getElementById("tc").onclick = function () { mode = "code"; stopPoll(); render(); };
+    document.getElementById("tq").onclick = function () { mode = "qr"; stopPoll(); render(); };
+    mode === "code" ? codeBox() : qrBox();
+  }
+
+  function steps(last) {
+    return "<ol>" +
+      "<li>افتح واتساب على موبايل الرقم ← الإعدادات ← <b>الأجهزة المرتبطة</b>.</li>" +
+      "<li>لو فيه جهاز قديم للسيستم: اضغط عليه ← <b>تسجيل الخروج</b>.</li>" +
+      "<li>اضغط <b>ربط جهاز</b>.</li>" + last + "</ol>";
+  }
+
+  function codeBox() {
+    var box = document.getElementById("box");
+    box.innerHTML =
+      '<input id="ph" inputmode="tel" placeholder="رقم الموبايل بكود الدولة" value="' + esc(info.number || "") + '">' +
+      '<button id="go">اطلب كود</button><div id="out"></div>' +
+      steps("<li>اضغط <b>الربط برقم الهاتف بدلاً من ذلك</b> واكتب الكود اللي هيظهر هنا.</li>");
+    document.getElementById("go").onclick = function () {
+      var btn = this, out = document.getElementById("out");
+      btn.disabled = true;
+      out.innerHTML = '<div class="msg">بيطلب الكود… (لحد 25 ثانية)</div>';
+      post("/code", { phone: document.getElementById("ph").value }).then(function (d) {
+        btn.disabled = false;
+        if (!d || !d.success) { out.innerHTML = '<div class="msg err">' + esc((d && d.msg) || "حصل خطأ") + "</div>"; return; }
+        out.innerHTML = '<div class="code"><b>' + esc(d.data.code) + '</b><div class="msg" style="text-align:center">صالح دقيقتين تقريبًا. لو انتهى اطلب كود جديد.</div></div>';
+        watchConnected();
+      }).catch(function () { btn.disabled = false; out.innerHTML = '<div class="msg err">السيرفر مش بيرد</div>'; });
+    };
+  }
+
+  function qrBox() {
+    var box = document.getElementById("box");
+    box.innerHTML = '<button id="go">اعرض QR</button><div id="out"></div>' +
+      steps("<li>وجّه الكاميرا على الـ QR اللي هيظهر هنا.</li>");
+    document.getElementById("go").onclick = function () {
+      var btn = this, out = document.getElementById("out");
+      btn.disabled = true;
+      out.innerHTML = '<div class="msg">بيجهّز الـ QR…</div>';
+      post("/start").then(function (d) {
+        btn.disabled = false;
+        if (!d || !d.success) { out.innerHTML = '<div class="msg err">' + esc((d && d.msg) || "حصل خطأ") + "</div>"; return; }
+        out.innerHTML = '<div class="qr"><img id="qrimg" alt="QR"></div><div class="msg" style="text-align:center">الـ QR بيتجدد لوحده.</div>';
+        return get().then(function (s) { if (s && s.success && s.data.qr) document.getElementById("qrimg").src = s.data.qr; watchConnected(); });
+      }).catch(function () { btn.disabled = false; out.innerHTML = '<div class="msg err">السيرفر مش بيرد</div>'; });
+    };
+  }
+
+  get().then(function (d) {
+    if (!d || !d.success) { app.innerHTML = '<div class="card msg err">' + esc((d && d.msg) || "الرابط غلط") + "<br>اطلب رابط جديد.</div>"; return; }
+    info = d.data;
+    document.getElementById("title").textContent = "ربط رقم: " + (info.title || "");
+    document.getElementById("num").textContent = info.number ? "+" + info.number : "";
+    if (info.connected) return done();
+    render();
+  }).catch(function () { app.innerHTML = '<div class="card msg err">السيرفر مش بيرد</div>'; });
+})();
+</script>
+</body>
+</html>

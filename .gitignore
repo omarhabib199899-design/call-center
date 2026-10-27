@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+node_modules/
+sessions/
+tmp/
+uploads/
+client/public/meta-media/
+client/public/media/
+client/public/recordings/
+*.log
+*.zip
+*.bak
+*.bak2
+*.orig
+.DS_Store
+zi7a78ct

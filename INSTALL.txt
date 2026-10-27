@@ -1,0 +1,4 @@
+Messenger names fix
+1. Extract into the server folder (where server.js is), overwrite.
+2. Setup Node.js App > Restart.
+3. New messages from customers show their Facebook name. If a name stays msng_..., search the app log for [MSNG].
