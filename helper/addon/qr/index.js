@@ -464,7 +464,11 @@ const createSession = async (
         const accept =
           m.type === "notify" || (m.type === "append" && !message.key.fromMe);
 
-        if (accept && remoteJid.endsWith("@s.whatsapp.net")) {
+        // [CUSTOM] groups (@g.us) are shown in the inbox too
+        if (
+          accept &&
+          (remoteJid.endsWith("@s.whatsapp.net") || remoteJid.endsWith("@g.us"))
+        ) {
           const uid = extractUidFromSessionId(sessionId);
           if (uid) {
             await processMessage({
@@ -502,6 +506,15 @@ const createSession = async (
       });
     });
 
+    // [CUSTOM] group created / renamed -> keep its name in the inbox current
+    const onGroups = (groups) => {
+      const named = (groups || []).filter((g) => g?.id && g?.subject);
+      if (!named.length) return;
+      require("./processThings").syncGroupNames({ session: sock, sessionId, groups: named });
+    };
+    sock.ev.on("groups.upsert", onGroups);
+    sock.ev.on("groups.update", onGroups);
+
     // Handle connection updates
     sock.ev.on(
       "connection.update",
@@ -523,6 +536,11 @@ const createSession = async (
           } catch (error) {
             newLogger.error("Database update error (open):", error);
           }
+          // [CUSTOM] refresh group names in the inbox once the link settles
+          setTimeout(() => {
+            if (!isCurrent()) return;
+            require("./processThings").syncGroupNames({ session: sock, sessionId });
+          }, 20000);
         } else if (connection === "close") {
           // A socket we already replaced: its close must not start another
           // reconnect, or two sockets fight over the same number.

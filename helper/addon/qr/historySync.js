@@ -157,6 +157,8 @@ async function importBatch({ data, uid, sessionId, getSession, normalizeMessageJ
 
   const latestPerChat = new Map();
   let saved = 0;
+  let dupes = 0;
+  let failed = 0;
 
   for (const { msg } of candidates) {
     const chatId = getChatId({
@@ -173,7 +175,8 @@ async function importBatch({ data, uid, sessionId, getSession, normalizeMessageJ
       chatId,
       useMessageTime: true,
     });
-    if (!res?.newMessage) continue; // duplicate or unsupported
+    if (!res) { failed += 1; continue; } // error or unsupported content
+    if (!res.newMessage) { dupes += 1; continue; } // already in the inbox
 
     saved += 1;
     const customer = msg.key.remoteJid.split("@")[0];
@@ -225,7 +228,8 @@ async function importBatch({ data, uid, sessionId, getSession, normalizeMessageJ
 
   log(
     sessionId,
-    `saved ${saved} of ${candidates.length} messages in ${latestPerChat.size} chats`,
+    `saved ${saved} of ${candidates.length} messages in ${latestPerChat.size} chats` +
+      ` (already there: ${dupes}, failed: ${failed})`,
   );
 
   if (saved) {

@@ -558,6 +558,16 @@ async function sendQrMsg({ uid, to, msgObj, chatInfo }) {
         isGroupChat = !!JSON.parse(chatInfo?.origin_instance_id || "{}")?.isGroup;
       } catch (e) {}
     }
+    // the browser's copy of the chat may lack origin_instance_id; ask the DB
+    if (!isGroupChat && chatInfo?.chat_id) {
+      try {
+        const [row] = await query(
+          `SELECT origin_instance_id FROM beta_chats WHERE chat_id = ? AND uid = ? LIMIT 1`,
+          [chatInfo.chat_id, uid],
+        );
+        isGroupChat = !!JSON.parse(row?.origin_instance_id || "{}")?.isGroup;
+      } catch (e) {}
+    }
     const jid = isGroupChat ? formatGroup(to) : formatPhone(to);
 
     // logger.log({ qrObj, jid });

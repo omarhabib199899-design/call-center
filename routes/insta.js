@@ -71,7 +71,7 @@ router.get("/callback", async (req, res) => {
   if (error || !code || !uid) {
     return res.send(`<html><body style="${pageStyle}">
       <h2>❌ Error: ${error || "Missing parameters"}</h2>
-      <script>setTimeout(() => window.close(), 3000);</script>
+      <script>setTimeout(() => (window.opener ? window.close() : location.replace("/user?page=link-instagram")), 3000);</script>
     </body></html>`);
   }
 
@@ -87,7 +87,7 @@ router.get("/callback", async (req, res) => {
       return res.send(`<html><body style="${pageStyle}">
         <h2>❌ Error: No active plan</h2>
         <p>Please subscribe to a plan to connect your Instagram account.</p>
-        <script>setTimeout(() => window.close(), 4000);</script>
+        <script>setTimeout(() => (window.opener ? window.close() : location.replace("/user?page=link-instagram")), 4000);</script>
       </body></html>`);
     }
 
@@ -96,7 +96,7 @@ router.get("/callback", async (req, res) => {
       return res.send(`<html><body style="${pageStyle}">
         <h2>❌ Error: Instagram inbox not included in your plan</h2>
         <p>Please upgrade your plan to connect your Instagram account.</p>
-        <script>setTimeout(() => window.close(), 4000);</script>
+        <script>setTimeout(() => (window.opener ? window.close() : location.replace("/user?page=link-instagram")), 4000);</script>
       </body></html>`);
     }
 
@@ -182,7 +182,7 @@ router.get("/callback", async (req, res) => {
         if (window.opener) {
           window.opener.postMessage({ type: "INSTA_CONNECTED" }, "*");
         }
-        setTimeout(() => window.close(), 2000);
+        setTimeout(() => (window.opener ? window.close() : location.replace("/user?page=link-instagram")), 2000);
       </script>
     </body></html>`);
   } catch (err) {
@@ -190,7 +190,7 @@ router.get("/callback", async (req, res) => {
     return res.send(`<html><body style="${pageStyle}">
       <h2>❌ Error</h2>
       <pre style="font-size:0.8rem;opacity:0.8">${err.message}</pre>
-      <script>setTimeout(() => window.close(), 4000);</script>
+      <script>setTimeout(() => (window.opener ? window.close() : location.replace("/user?page=link-instagram")), 4000);</script>
     </body></html>`);
   }
 });

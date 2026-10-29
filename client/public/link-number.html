@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>ربط رقم الواتساب</title>
+<title>Link WhatsApp Number</title>
 <style>
   :root { --bg:#f4f6f8; --card:#fff; --ink:#1d2329; --muted:#66707a; --line:#e3e7eb; --ok:#1a8f4c; --bad:#c0392b; --acc:#128c7e; }
   @media (prefers-color-scheme: dark) { :root { --bg:#111417; --card:#1b2026; --ink:#e8ecef; --muted:#9aa4ad; --line:#2a3138; } }
@@ -20,7 +20,7 @@
   button { background: var(--acc); color:#fff; border:0; border-radius: 8px; padding: 11px 14px; font-size: 15px; cursor: pointer; width: 100%; }
   button:disabled { opacity: .6; }
   input { width:100%; padding: 10px; border:1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font-size: 16px; direction: ltr; margin-bottom: 10px; }
-  .code b { display:block; text-align:center; font-size: 36px; letter-spacing: 6px; direction:ltr; font-family: ui-monospace, Consolas, monospace; margin: 8px 0; }
+  .code .big { display:block; text-align:center; font-size: 36px; letter-spacing: 6px; direction:ltr; font-family: ui-monospace, Consolas, monospace; margin: 8px 0; }
   .qr { text-align:center; } .qr img { width: 260px; max-width: 100%; background:#fff; padding: 8px; border-radius: 8px; }
   ol { padding-inline-start: 20px; line-height: 1.9; color: var(--muted); font-size: 15px; margin: 10px 0 0; }
   .msg { margin-top: 10px; font-size: 14px; color: var(--muted); }
@@ -29,9 +29,9 @@
 </head>
 <body>
 <main>
-  <h1 id="title">ربط رقم الواتساب</h1>
+  <h1 id="title">Link WhatsApp number</h1>
   <div class="num" id="num"></div>
-  <div id="app"><div class="msg">جاري التحميل…</div></div>
+  <div id="app"><div class="msg">Loading…</div></div>
 </main>
 <script>
 (function () {
@@ -51,7 +51,7 @@
 
   function done() {
     stopPoll();
-    app.innerHTML = '<div class="card"><div class="ok">✅ تم ربط الرقم</div><div class="msg" style="text-align:center">تقدر تقفل الصفحة دي.</div></div>';
+    app.innerHTML = '<div class="card"><div class="ok">✅ Number linked</div><div class="msg" style="text-align:center">You can close this page.</div></div>';
   }
 
   function watchConnected() {
@@ -69,8 +69,8 @@
 
   function render() {
     app.innerHTML =
-      '<div class="tabs"><button id="tc" class="' + (mode === "code" ? "on" : "") + '">بكود (من نفس الموبايل)</button>' +
-      '<button id="tq" class="' + (mode === "qr" ? "on" : "") + '">بـ QR (من جهاز تاني)</button></div>' +
+      '<div class="tabs"><button id="tc" class="' + (mode === "code" ? "on" : "") + '">With a code (same phone)</button>' +
+      '<button id="tq" class="' + (mode === "qr" ? "on" : "") + '">With a QR (another device)</button></div>' +
       '<div class="card" id="box"></div>';
     document.getElementById("tc").onclick = function () { mode = "code"; stopPoll(); render(); };
     document.getElementById("tq").onclick = function () { mode = "qr"; stopPoll(); render(); };
@@ -79,55 +79,55 @@
 
   function steps(last) {
     return "<ol>" +
-      "<li>افتح واتساب على موبايل الرقم ← الإعدادات ← <b>الأجهزة المرتبطة</b>.</li>" +
-      "<li>لو فيه جهاز قديم للسيستم: اضغط عليه ← <b>تسجيل الخروج</b>.</li>" +
-      "<li>اضغط <b>ربط جهاز</b>.</li>" + last + "</ol>";
+      "<li>Open WhatsApp on this number's phone → Settings → <b>Linked devices</b>.</li>" +
+      "<li>If an old device for this system is listed, tap it → <b>Log out</b>.</li>" +
+      "<li>Tap <b>Link a device</b>.</li>" + last + "</ol>";
   }
 
   function codeBox() {
     var box = document.getElementById("box");
     box.innerHTML =
-      '<input id="ph" inputmode="tel" placeholder="رقم الموبايل بكود الدولة" value="' + esc(info.number || "") + '">' +
-      '<button id="go">اطلب كود</button><div id="out"></div>' +
-      steps("<li>اضغط <b>الربط برقم الهاتف بدلاً من ذلك</b> واكتب الكود اللي هيظهر هنا.</li>");
+      '<input id="ph" inputmode="tel" placeholder="Phone number with country code" value="' + esc(info.number || "") + '">' +
+      '<button id="go">Get code</button><div id="out"></div>' +
+      steps("<li>Tap <b>Link with phone number instead</b> and type the code shown here.</li>");
     document.getElementById("go").onclick = function () {
       var btn = this, out = document.getElementById("out");
       btn.disabled = true;
-      out.innerHTML = '<div class="msg">بيطلب الكود… (لحد 25 ثانية)</div>';
+      out.innerHTML = '<div class="msg">Getting the code… (up to 25 seconds)</div>';
       post("/code", { phone: document.getElementById("ph").value }).then(function (d) {
         btn.disabled = false;
-        if (!d || !d.success) { out.innerHTML = '<div class="msg err">' + esc((d && d.msg) || "حصل خطأ") + "</div>"; return; }
-        out.innerHTML = '<div class="code"><b>' + esc(d.data.code) + '</b><div class="msg" style="text-align:center">صالح دقيقتين تقريبًا. لو انتهى اطلب كود جديد.</div></div>';
+        if (!d || !d.success) { out.innerHTML = '<div class="msg err">' + esc((d && d.msg) || "Something went wrong") + "</div>"; return; }
+        out.innerHTML = '<div class="code"><span class="big">' + esc(d.data.code) + '</span><div class="msg" style="text-align:center">Valid for about 2 minutes. If it expires, get a new one.</div></div>';
         watchConnected();
-      }).catch(function () { btn.disabled = false; out.innerHTML = '<div class="msg err">السيرفر مش بيرد</div>'; });
+      }).catch(function () { btn.disabled = false; out.innerHTML = '<div class="msg err">The server is not responding</div>'; });
     };
   }
 
   function qrBox() {
     var box = document.getElementById("box");
-    box.innerHTML = '<button id="go">اعرض QR</button><div id="out"></div>' +
-      steps("<li>وجّه الكاميرا على الـ QR اللي هيظهر هنا.</li>");
+    box.innerHTML = '<button id="go">Show QR</button><div id="out"></div>' +
+      steps("<li>Point the camera at the QR shown here.</li>");
     document.getElementById("go").onclick = function () {
       var btn = this, out = document.getElementById("out");
       btn.disabled = true;
-      out.innerHTML = '<div class="msg">بيجهّز الـ QR…</div>';
+      out.innerHTML = '<div class="msg">Preparing the QR…</div>';
       post("/start").then(function (d) {
         btn.disabled = false;
-        if (!d || !d.success) { out.innerHTML = '<div class="msg err">' + esc((d && d.msg) || "حصل خطأ") + "</div>"; return; }
-        out.innerHTML = '<div class="qr"><img id="qrimg" alt="QR"></div><div class="msg" style="text-align:center">الـ QR بيتجدد لوحده.</div>';
+        if (!d || !d.success) { out.innerHTML = '<div class="msg err">' + esc((d && d.msg) || "Something went wrong") + "</div>"; return; }
+        out.innerHTML = '<div class="qr"><img id="qrimg" alt="QR"></div><div class="msg" style="text-align:center">The QR refreshes by itself.</div>';
         return get().then(function (s) { if (s && s.success && s.data.qr) document.getElementById("qrimg").src = s.data.qr; watchConnected(); });
-      }).catch(function () { btn.disabled = false; out.innerHTML = '<div class="msg err">السيرفر مش بيرد</div>'; });
+      }).catch(function () { btn.disabled = false; out.innerHTML = '<div class="msg err">The server is not responding</div>'; });
     };
   }
 
   get().then(function (d) {
-    if (!d || !d.success) { app.innerHTML = '<div class="card msg err">' + esc((d && d.msg) || "الرابط غلط") + "<br>اطلب رابط جديد.</div>"; return; }
+    if (!d || !d.success) { app.innerHTML = '<div class="card msg err">' + esc((d && d.msg) || "Invalid link") + "<br>Ask for a new link.</div>"; return; }
     info = d.data;
-    document.getElementById("title").textContent = "ربط رقم: " + (info.title || "");
+    document.getElementById("title").textContent = "Link number: " + (info.title || "");
     document.getElementById("num").textContent = info.number ? "+" + info.number : "";
     if (info.connected) return done();
     render();
-  }).catch(function () { app.innerHTML = '<div class="card msg err">السيرفر مش بيرد</div>'; });
+  }).catch(function () { app.innerHTML = '<div class="card msg err">The server is not responding</div>'; });
 })();
 </script>
 </body>

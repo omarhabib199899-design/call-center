@@ -392,17 +392,24 @@ async function processMessage({
         return logger.log("User not found");
       }
 
-      // Process the message through the flow builder
-      await processWebhook(latestConversation?.newMessage, user);
+      // [CUSTOM] never let the chatbot / flows / automations answer inside a
+      // WhatsApp group — it would reply to everyone in the group
+      const isGroupMsg =
+        origin === "qr" && String(body?.key?.remoteJid || "").endsWith("@g.us");
 
-      await processAutomation({
-        uid,
-        message: latestConversation?.newMessage,
-        user,
-        sessionId: latestConversation?.sessionId || sessionId,
-        origin,
-        chatId: latestConversation?.chatId,
-      });
+      if (!isGroupMsg) {
+        // Process the message through the flow builder
+        await processWebhook(latestConversation?.newMessage, user);
+
+        await processAutomation({
+          uid,
+          message: latestConversation?.newMessage,
+          user,
+          sessionId: latestConversation?.sessionId || sessionId,
+          origin,
+          chatId: latestConversation?.chatId,
+        });
+      }
 
       const msg = latestConversation?.newMessage;
       if (msg?.route === "INCOMING") {

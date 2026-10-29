@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ربط أرقام الواتساب بكود</title>
+<title>Link WhatsApp Numbers</title>
 <style>
   :root { --bg:#f4f6f8; --card:#fff; --ink:#1d2329; --muted:#66707a; --line:#e3e7eb; --ok:#1a8f4c; --bad:#c0392b; --acc:#128c7e; }
   @media (prefers-color-scheme: dark) { :root { --bg:#111417; --card:#1b2026; --ink:#e8ecef; --muted:#9aa4ad; --line:#2a3138; } }
@@ -25,7 +25,7 @@
   button { background: var(--acc); color:#fff; border:0; border-radius: 8px; padding: 9px 14px; font-size: 14px; cursor: pointer; }
   button:disabled { opacity: .6; cursor: default; }
   .code { margin-top: 12px; padding: 14px; border-radius: 10px; border: 2px dashed var(--acc); text-align: center; }
-  .code b { display:block; font-size: 34px; letter-spacing: 6px; direction: ltr; font-family: ui-monospace, Consolas, monospace; }
+  .code .big { display:block; font-size: 34px; letter-spacing: 6px; direction: ltr; font-family: ui-monospace, Consolas, monospace; }
   .steps { margin: 10px 0 0; padding-inline-start: 20px; color: var(--muted); line-height: 1.8; font-size: 14px; text-align: start; }
   .err { color: var(--bad); margin-top: 8px; font-size: 14px; }
   .login { max-width: 360px; }
@@ -34,8 +34,8 @@
 </head>
 <body>
 <main>
-  <h1>ربط أرقام الواتساب بكود</h1>
-  <p class="lead">لرقم فاصل ومحتاج يتربط من غير QR: اضغط <b>اطلب كود</b>، وابعت الكود لصاحب الموبايل، وهو يكتبه في واتساب. الكود صالح دقيقتين تقريبًا.</p>
+  <h1>Link WhatsApp numbers</h1>
+  <p class="lead">Reconnect a number without scanning a QR. <b>Get code</b> gives you an 8-character code for whoever holds the phone to type into WhatsApp (valid about 2 minutes). <b>Branch link</b> gives a 24-hour link the branch can open to link the number themselves.</p>
   <div id="app"></div>
 </main>
 <script>
@@ -56,31 +56,31 @@
 
   function loginForm(msg) {
     app.innerHTML =
-      '<div class="card login"><div class="title">سجّل دخول بحساب الأدمن</div><br>' +
+      '<div class="card login"><div class="title">Sign in with the admin account</div><br>' +
       '<input id="em" type="email" placeholder="Email">' +
       '<input id="pw" type="password" placeholder="Password">' +
-      '<button id="go">دخول</button><div class="err" id="st">' + esc(msg || "") + "</div></div>";
+      '<button id="go">Sign in</button><div class="err" id="st">' + esc(msg || "") + "</div></div>";
     document.getElementById("go").onclick = function () {
       fetch("/api/user/login", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: document.getElementById("em").value.trim(), password: document.getElementById("pw").value })
       }).then(function (r) { return r.json(); }).then(function (d) {
         if (d && d.success && d.token) { try { localStorage.setItem(TOKEN_KEY, d.token); } catch (e) {} load(); }
-        else document.getElementById("st").textContent = (d && d.msg) || "بيانات غلط";
-      }).catch(function () { document.getElementById("st").textContent = "السيرفر مش بيرد"; });
+        else document.getElementById("st").textContent = (d && d.msg) || "Wrong email or password";
+      }).catch(function () { document.getElementById("st").textContent = "The server is not responding"; });
     };
   }
 
   function load() {
     if (!token()) return loginForm();
-    app.textContent = "جاري التحميل…";
+    app.textContent = "Loading…";
     api("GET", "/list").then(function (d) {
       if (!d || !d.success) return loginForm(d && d.msg);
       var list = d.data || [];
-      if (!list.length) { app.textContent = "مفيش أرقام."; return; }
+      if (!list.length) { app.textContent = "No numbers yet."; return; }
       app.innerHTML = "";
       list.forEach(function (ins) { app.appendChild(row(ins)); });
-    }).catch(function () { app.textContent = "السيرفر مش بيرد."; });
+    }).catch(function () { app.textContent = "The server is not responding."; });
   }
 
   function row(ins) {
@@ -90,10 +90,10 @@
     el.innerHTML =
       '<div class="row">' +
         '<div class="grow"><div class="title">' + esc(ins.title || "—") + '</div><div class="num">+' + esc(ins.number || "") + "</div></div>" +
-        '<span class="pill ' + (on ? "on" : "off") + '">' + (on ? "متصل" : "غير متصل") + "</span>" +
-        '<input class="ph" placeholder="رقم الموبايل" value="' + esc(ins.number || "") + '">' +
-        '<button class="code-btn">' + (on ? "إعادة ربط" : "اطلب كود") + "</button>" +
-        '<button class="share-btn" style="background:#5b6670">رابط للفرع</button>' +
+        '<span class="pill ' + (on ? "on" : "off") + '">' + (on ? "Connected" : "Not connected") + "</span>" +
+        '<input class="ph" placeholder="Phone number" value="' + esc(ins.number || "") + '">' +
+        '<button class="code-btn">' + (on ? "Re-link" : "Get code") + "</button>" +
+        '<button class="share-btn" style="background:#5b6670">Branch link</button>' +
       "</div><div class=\"out\"></div>";
     var btn = el.querySelector(".code-btn");
     var shareBtn = el.querySelector(".share-btn");
@@ -102,38 +102,38 @@
       shareBtn.disabled = true;
       api("POST", "/share", { uniqueId: ins.uniqueId }).then(function (d) {
         shareBtn.disabled = false;
-        if (!d || !d.success) { out.innerHTML = '<div class="err">' + esc((d && d.msg) || "حصل خطأ") + "</div>"; return; }
+        if (!d || !d.success) { out.innerHTML = '<div class="err">' + esc((d && d.msg) || "Something went wrong") + "</div>"; return; }
         out.innerHTML =
           '<div class="code" style="text-align:start">' +
-          '<div style="margin-bottom:6px">ابعت الرابط ده لحد معاه موبايل الرقم. صالح ' + esc(d.data.hours) + " ساعة، ولرقم <b>" + esc(ins.title || "") + "</b> بس.</div>" +
+          '<div style="margin-bottom:6px">Send this link to whoever has the phone for <strong>' + esc(ins.title || "") + "</strong>. It works for this number only and expires in " + esc(d.data.hours) + " hours.</div>" +
           '<input readonly value="' + esc(d.data.url) + '" style="direction:ltr" onclick="this.select()">' +
-          '<button class="copy" style="margin-top:8px">نسخ الرابط</button></div>';
+          '<button class="copy" style="margin-top:8px">Copy link</button></div>';
         out.querySelector(".copy").onclick = function () {
           var inp = out.querySelector("input"); inp.select();
           try { navigator.clipboard.writeText(inp.value); } catch (e) { document.execCommand("copy"); }
-          this.textContent = "اتنسخ ✓";
+          this.textContent = "Copied ✓";
         };
-      }).catch(function () { shareBtn.disabled = false; out.innerHTML = '<div class="err">السيرفر مش بيرد</div>'; });
+      }).catch(function () { shareBtn.disabled = false; out.innerHTML = '<div class="err">The server is not responding</div>'; });
     };
     var out = el.querySelector(".out");
     btn.onclick = function () {
-      if (on && !confirm("الرقم ده متصل. متأكد إنك عايز تعمل له ربط جديد؟")) return;
+      if (on && !confirm("This number is connected. Start a new link anyway?")) return;
       btn.disabled = true;
-      out.innerHTML = '<div class="err" style="color:var(--muted)">بيطلب الكود من واتساب… (لحد 25 ثانية)</div>';
+      out.innerHTML = '<div class="err" style="color:var(--muted)">Asking WhatsApp for a code… (up to 25 seconds)</div>';
       api("POST", "/code", { uniqueId: ins.uniqueId, phone: el.querySelector(".ph").value })
         .then(function (d) {
           btn.disabled = false;
-          if (!d || !d.success) { out.innerHTML = '<div class="err">' + esc((d && d.msg) || "حصل خطأ") + "</div>"; return; }
+          if (!d || !d.success) { out.innerHTML = '<div class="err">' + esc((d && d.msg) || "Something went wrong") + "</div>"; return; }
           out.innerHTML =
-            '<div class="code"><b>' + esc(d.data.code) + "</b>" +
+            '<div class="code"><span class="big">' + esc(d.data.code) + "</span>" +
             '<ol class="steps">' +
-              "<li>على موبايل الرقم: واتساب ← الإعدادات ← <b>الأجهزة المرتبطة</b>.</li>" +
-              "<li>لو فيه جهاز قديم للسيستم: اضغط عليه ← تسجيل الخروج.</li>" +
-              "<li>اضغط <b>ربط جهاز</b> ← تحت الكاميرا: <b>الربط برقم الهاتف بدلاً من ذلك</b>.</li>" +
-              "<li>اكتب الكود ده. لو انتهى، اطلب كود جديد.</li>" +
+              "<li>On the phone: WhatsApp → Settings → <b>Linked devices</b>.</li>" +
+              "<li>If an old device for this system is listed, tap it → <b>Log out</b>.</li>" +
+              "<li>Tap <b>Link a device</b> → under the camera tap <b>Link with phone number instead</b>.</li>" +
+              "<li>Type this code. If it expires, get a new one.</li>" +
             "</ol></div>";
         })
-        .catch(function () { btn.disabled = false; out.innerHTML = '<div class="err">السيرفر مش بيرد</div>'; });
+        .catch(function () { btn.disabled = false; out.innerHTML = '<div class="err">The server is not responding</div>'; });
     };
     return el;
   }

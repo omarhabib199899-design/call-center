@@ -122,7 +122,7 @@ router.get("/callback", async (req, res) => {
   if (error || !code || !uid) {
     return res.send(`<html><body style="${pageStyle}">
       <h2>❌ Error: ${error || "Missing parameters"}</h2>
-      <script>setTimeout(() => window.close(), 3000);</script>
+      <script>setTimeout(() => (window.opener ? window.close() : location.replace("/user?page=link-messenger")), 3000);</script>
     </body></html>`);
   }
 
@@ -268,7 +268,7 @@ router.get("/callback", async (req, res) => {
       <p style="opacity:0.8">Closing in 2 seconds...</p>
       <script>
         if (window.opener) window.opener.postMessage({ type: "MESSENGER_CONNECTED" }, "*");
-        setTimeout(() => window.close(), 2000);
+        setTimeout(() => (window.opener ? window.close() : location.replace("/user?page=link-messenger")), 2000);
       </script>
     </body></html>`);
   } catch (err) {
@@ -276,7 +276,7 @@ router.get("/callback", async (req, res) => {
     return res.send(`<html><body style="${pageStyle}">
       <h2>❌ Error</h2>
       <pre style="font-size:0.8rem;opacity:0.8">${err.message}</pre>
-      <script>setTimeout(() => window.close(), 4000);</script>
+      <script>setTimeout(() => (window.opener ? window.close() : location.replace("/user?page=link-messenger")), 4000);</script>
     </body></html>`);
   }
 });

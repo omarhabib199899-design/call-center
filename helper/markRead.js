@@ -61,7 +61,12 @@ async function markQrRead({ uid, chat }) {
   const sock = getSession(instance.uniqueId);
   if (!sock) return;
 
-  const isGroup = String(chat.sender_mobile || "").includes("-");
+  // [CUSTOM] new-style group ids have no dash; the group flag lives in
+  // origin_instance_id
+  let isGroup = String(chat.sender_mobile || "").includes("-");
+  try {
+    if (JSON.parse(chat.origin_instance_id || "{}")?.isGroup) isGroup = true;
+  } catch (e) {}
   const jid = `${chat.sender_mobile}@${isGroup ? "g.us" : "s.whatsapp.net"}`;
 
   const rows = await latestIncoming({
@@ -77,8 +82,12 @@ async function markQrRead({ uid, chat }) {
     fromMe: false,
   }));
 
-  // Blue ticks for the customer.
-  await sock.readMessages(keys);
+  // Blue ticks for the customer. (Not for groups: a group read receipt needs
+  // the author of each message, which the inbox does not store.)
+  if (!isGroup) {
+    await sock.readMessages(keys);
+    log(`whatsapp read sent for ${keys.length} message(s) in ${chat.chat_id}`);
+  }
 
   // Clear the unread badge on the phone / WhatsApp Business app as well.
   // Needs app-state keys, which a freshly linked session may not have yet.
@@ -128,6 +137,7 @@ async function markMetaRead({ uid, chat }) {
   );
   const data = await res.json().catch(() => ({}));
   if (data?.error) log("meta:", data.error.message);
+  else log(`whatsapp cloud read sent for ${chat.chat_id}`);
 }
 
 // ─── Facebook Messenger ──────────────────────────────────────────────────
@@ -157,6 +167,7 @@ async function markMessengerRead({ uid, chat }) {
   );
   const data = await res.json().catch(() => ({}));
   if (data?.error) log("messenger:", data.error.message);
+  else log(`messenger seen sent to ${chat.sender_mobile}`);
 }
 
 // ─── Instagram DMs ───────────────────────────────────────────────────────
@@ -184,6 +195,7 @@ async function markInstagramRead({ uid, chat }) {
   });
   const data = await res.json().catch(() => ({}));
   if (data?.error) log("instagram:", data.error.message);
+  else log(`instagram seen sent to ${chat.sender_mobile}`);
 }
 
 const HANDLERS = {

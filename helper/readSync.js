@@ -57,6 +57,7 @@ async function clearUnread({ uid, chatId }) {
 // ─── WhatsApp (QR) ───────────────────────────────────────────────────────
 async function jidToNumber(sock, jid) {
   let id = String(jid || "");
+  if (id.endsWith("@g.us")) return id.split("@")[0]; // [CUSTOM] group chat
   if (id.endsWith("@lid")) {
     try {
       id = (await sock?.signalRepository?.lidMapping?.getPNForLID?.(id)) || "";

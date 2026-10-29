@@ -412,11 +412,18 @@ function processSocketEvent({
             try {
               const ownerUid = isAgent ? socket?.userData?.owner_uid : uid;
               const [unreadRow] = await query(
-                `SELECT chat_id, origin, origin_instance_id, sender_mobile, unread_count
+                `SELECT chat_id, origin, origin_instance_id, sender_mobile, unread_count, last_message
                  FROM beta_chats WHERE id = ? AND uid = ? LIMIT 1`,
                 [chat.id, ownerUid],
               );
-              if (unreadRow?.unread_count > 0) {
+              // Also when the counter is already 0: the Business Suite / phone
+              // read sync may have cleared it before the agent opened the
+              // chat, and the customer must still get "Seen".
+              let lastRoute = "";
+              try {
+                lastRoute = JSON.parse(unreadRow?.last_message || "{}")?.route || "";
+              } catch (e) {}
+              if (unreadRow && (unreadRow.unread_count > 0 || lastRoute === "INCOMING")) {
                 markChatRead({ uid: ownerUid, chat: unreadRow });
               }
             } catch (e) {}

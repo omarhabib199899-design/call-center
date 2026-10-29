@@ -29,6 +29,137 @@ function extractPhoneNumber(str) {
   return match ? match[1] : null;
 }
 
+// ─── [CUSTOM] WhatsApp groups ────────────────────────────────────────────
+// A group chat is stored like a customer chat, with the group id where the
+// customer number normally goes (chat_id = <ourNumber>_<groupId>_<uid>,
+// sender_mobile = <groupId>), the group name as sender_name, and
+// isGroup: true inside origin_instance_id, which the send code already reads
+// to reply to the group instead of a phone number.
+function isGroupJid(jid) {
+  return String(jid || "").endsWith("@g.us");
+}
+
+const groupSubjects = new Map(); // jid -> { subject, at }
+const GROUP_SUBJECT_TTL = 6 * 60 * 60 * 1000;
+
+function rememberGroupSubjects(groups) {
+  let n = 0;
+  for (const g of Array.isArray(groups) ? groups : Object.values(groups || {})) {
+    if (g?.id && g?.subject) {
+      groupSubjects.set(g.id, { subject: g.subject, at: Date.now() });
+      n += 1;
+    }
+  }
+  return n;
+}
+
+const lastFetchAll = new WeakMap(); // session -> time of last groupFetchAllParticipating
+
+/** Every group this number is in, with names. At most once per 10 min. */
+async function fetchAllGroups(session) {
+  if (!session?.groupFetchAllParticipating) return 0;
+  const last = lastFetchAll.get(session) || 0;
+  if (Date.now() - last < 10 * 60 * 1000) return 0;
+  lastFetchAll.set(session, Date.now());
+  try {
+    const all = await timeoutPromise(session.groupFetchAllParticipating(), 30000);
+    const n = rememberGroupSubjects(all);
+    console.log(`[groups] fetched ${n} group name(s)`);
+    return n;
+  } catch (e) {
+    console.log("[groups] fetch all failed:", e?.message || e);
+    return 0;
+  }
+}
+
+async function getGroupSubject(session, jid) {
+  const hit = groupSubjects.get(jid);
+  if (hit && Date.now() - hit.at < GROUP_SUBJECT_TTL) return hit.subject;
+  try {
+    const meta = await timeoutPromise(session?.groupMetadata?.(jid), 15000);
+    if (meta?.subject) {
+      groupSubjects.set(jid, { subject: meta.subject, at: Date.now() });
+      return meta.subject;
+    }
+    console.log(`[groups] no name from groupMetadata for ${jid}`);
+  } catch (e) {
+    console.log(`[groups] groupMetadata failed for ${jid}:`, e?.message || e);
+  }
+  // fall back to the list of all groups
+  await fetchAllGroups(session);
+  return groupSubjects.get(jid)?.subject || hit?.subject || null;
+}
+
+/**
+ * Put the real group names on this number's group chats in the inbox.
+ * Used when the number connects and when WhatsApp reports a group change.
+ */
+async function syncGroupNames({ session, sessionId, groups }) {
+  try {
+    if (groups) rememberGroupSubjects(groups);
+    else await fetchAllGroups(session);
+
+    const [instance] = await query(
+      `SELECT uid, number FROM instance WHERE uniqueId = ? LIMIT 1`,
+      [sessionId]
+    );
+    if (!instance?.number) return;
+
+    const rows = await query(
+      `SELECT id, sender_mobile, sender_name FROM beta_chats
+        WHERE uid = ? AND origin = 'qr' AND chat_id LIKE ?
+          AND REPLACE(origin_instance_id, ' ', '') LIKE '%"isGroup":true%'`,
+      [instance.uid, `${instance.number}\\_%`]
+    );
+    let renamed = 0;
+    for (const r of rows) {
+      const subject = groupSubjects.get(`${r.sender_mobile}@g.us`)?.subject;
+      if (subject && subject !== r.sender_name) {
+        await query(
+          `UPDATE beta_chats SET sender_name = ?, updatedAt = updatedAt WHERE id = ?`,
+          [subject, r.id]
+        );
+        renamed += 1;
+      }
+    }
+    if (renamed) console.log(`[groups] ${sessionId}: renamed ${renamed} group chat(s)`);
+  } catch (e) {
+    console.log("[groups] syncGroupNames:", e?.message || e);
+  }
+}
+
+/** Name and phone of the person who wrote a group message. */
+async function getGroupSender(session, message) {
+  const key = message?.key || {};
+  const candidates = [key.participantAlt, key.participant, message?.participant];
+  let phone = null;
+  for (const c of candidates) {
+    if (String(c || "").endsWith("@s.whatsapp.net")) {
+      phone = String(c).split("@")[0].split(":")[0];
+      break;
+    }
+  }
+  if (!phone) {
+    const lid = candidates.find((c) => String(c || "").endsWith("@lid"));
+    if (lid) {
+      try {
+        const pn = await session?.signalRepository?.lidMapping?.getPNForLID?.(lid);
+        if (pn) phone = String(pn).split("@")[0].split(":")[0];
+      } catch (e) {}
+    }
+  }
+  return { name: message?.pushName || null, phone };
+}
+
+function groupSenderLabel(sender) {
+  if (!sender) return "";
+  const { name, phone } = sender;
+  if (name && phone) return `${name} (+${phone})`;
+  if (name) return name;
+  if (phone) return `+${phone}`;
+  return "";
+}
+
 async function updateProfileMysql({
   chatId,
   uid,
@@ -92,8 +223,41 @@ async function updateChatInMysql({
     });
 
     const sessionData = await getSession(sessionId);
-    const originInstanceId =
+    let originInstanceId =
       sessionData?.authState?.creds?.me || sessionData.user;
+
+    // [CUSTOM] group chat: show the group's name and mark it as a group so
+    // replies go to the group
+    if (isGroupJid(jid)) {
+      originInstanceId = { ...(originInstanceId || {}), isGroup: true };
+      const cached = groupSubjects.get(jid)?.subject;
+      if (cached) {
+        senderName = cached;
+      } else {
+        // don't hold the message back while WhatsApp is asked for the name:
+        // keep the current name now, put the real one on when it arrives
+        const [old] = await query(
+          `SELECT sender_name FROM beta_chats WHERE chat_id = ? AND uid = ? LIMIT 1`,
+          [chatId, uid]
+        );
+        senderName =
+          old?.sender_name && old.sender_name !== "NA" ? old.sender_name : "WhatsApp group";
+        setImmediate(async () => {
+          const subject = await getGroupSubject(sessionData, jid);
+          if (!subject) return;
+          await query(
+            `UPDATE beta_chats SET sender_name = ?, updatedAt = updatedAt WHERE chat_id = ? AND uid = ?`,
+            [subject, chatId, uid]
+          ).catch(() => {});
+          try {
+            const { getConnectionsByUid, sendToSocket } = require("../../../socket");
+            (getConnectionsByUid(uid, true) || []).forEach((s) =>
+              sendToSocket(s?.socketId, { chatId }, "request_update_chat_list")
+            );
+          } catch (e) {}
+        });
+      }
+    }
 
     // Check if chat exists
     const [chat] = await query(
@@ -206,6 +370,10 @@ async function downloadMediaPromise(m, mimetype) {
 
 function getChatId({ instanceNumber, senderMobile, uid }) {
   try {
+    // [CUSTOM] group ids can contain a dash (old style "2010...-1612345678")
+    if (isGroupJid(senderMobile)) {
+      return `${instanceNumber}_${String(senderMobile).split("@")[0]}_${uid}`;
+    }
     return `${instanceNumber}_${extractPhoneNumber(senderMobile)}_${uid}`;
   } catch (error) {
     return null;
@@ -249,6 +417,7 @@ async function processBaileysMsg({
   userFromMysql,
   chatId,
   useMessageTime = false, // [CUSTOM] true for offline/history messages
+  groupSender = null, // [CUSTOM] { name, phone } of the group member who wrote it
 }) {
   try {
     if (!body) return null;
@@ -430,6 +599,21 @@ async function processBaileysMsg({
       return null;
     }
 
+    // [CUSTOM] in a group, show who wrote each incoming message
+    const senderLabel =
+      isGroupJid(body.key?.remoteJid) && !body.key?.fromMe
+        ? groupSenderLabel(groupSender)
+        : "";
+    if (senderLabel) {
+      const t = msgContext.type;
+      if (t === "text" && msgContext.text) {
+        msgContext.text.body = `${senderLabel}:\n${msgContext.text.body || ""}`;
+      } else if (msgContext[t] && "caption" in msgContext[t]) {
+        const cap = msgContext[t].caption;
+        msgContext[t].caption = cap ? `${senderLabel}:\n${cap}` : senderLabel;
+      }
+    }
+
     // Determine context from quoted message if available
     let contextData = "";
     if (referencedMessageData?.stanzaId) {
@@ -553,12 +737,20 @@ async function processMessageQr({
       uid,
     });
 
+    // [CUSTOM] who wrote it, for incoming group messages
+    let groupSender = null;
+    if (isGroupJid(message.key.remoteJid) && !message.key.fromMe && message.message) {
+      const session = await timeoutPromise(getSession(sessionId || "a"), 15000);
+      groupSender = await getGroupSender(session, message);
+    }
+
     const data = await processBaileysMsg({
       body: message,
       uid: uid,
       userFromMysql: userData,
       chatId,
       useMessageTime: type === "append",
+      groupSender,
     });
 
     // Update chat in MySQL with the latest message
@@ -590,4 +782,6 @@ module.exports = {
   processBaileysMsg,
   getChatId,
   toUnixSeconds,
+  isGroupJid,
+  syncGroupNames,
 };
