@@ -45,8 +45,11 @@ router.get("/auth-url", validateUser, async (req, res) => {
       });
     }
 
+    // [CUSTOM] content_publish dropped: nothing in the app publishes posts,
+    // and asking for a permission that is not approved in App Review makes
+    // Instagram Login fail for everyone except app testers.
     const SCOPES =
-      "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish";
+      "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments";
 
     const params = new URLSearchParams({
       client_id: apiKeys.insta_app_id,
@@ -133,7 +136,18 @@ router.get("/callback", async (req, res) => {
     // Fetch profile
     const profile = await fetchInstaProfile(finalToken);
     if (!profile?.username) {
-      throw new Error("Could not fetch Instagram profile.");
+      // [CUSTOM] show Meta's own reason instead of a generic message
+      const why = profile?.error
+        ? `${profile.error.message || ""} (code ${profile.error.code || "?"}` +
+          `${profile.error.error_subcode ? "/" + profile.error.error_subcode : ""})`
+        : JSON.stringify(profile || {}).slice(0, 300);
+      logger.log(
+        "[insta] profile fetch failed:",
+        why,
+        "| long token:",
+        longData?.access_token ? "ok" : JSON.stringify(longData || {}).slice(0, 300),
+      );
+      throw new Error("Could not fetch Instagram profile: " + why);
     }
 
     const igBusinessId = String(profile.user_id || profile.id);

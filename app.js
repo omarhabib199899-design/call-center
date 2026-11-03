@@ -253,6 +253,15 @@ const server = app.listen(process.env.PORT || 3010, () => {
     console.log(`WaCrm server is running on port ${process.env.PORT}`);
 
   updateLangJsonFromEnglish();
+
+  // [CUSTOM] DEV_SANDBOX=1 (only in the dev copy's .env): a design/test copy
+  // must never talk to the real WhatsApp numbers, Meta pages or customers.
+  // No WhatsApp sessions, no Telegram, no campaigns, warmer or read sync.
+  if (process.env.DEV_SANDBOX === "1") {
+    console.log("[DEV_SANDBOX] background jobs and WhatsApp/Telegram sessions are OFF");
+    return;
+  }
+
   init();
   setTimeout(() => {
     warmerLoopInit();

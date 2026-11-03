@@ -340,6 +340,11 @@ const createSession = async (
     syncFullHistory: process.env.QR_FULL_HISTORY === "true",
   },
 ) => {
+  // [CUSTOM] the dev copy never opens a WhatsApp connection
+  if (process.env.DEV_SANDBOX === "1") {
+    waLog(sessionId, "DEV_SANDBOX: WhatsApp connection blocked");
+    return null;
+  }
   try {
     // Load baileys functions first
     await loadBaileysIfNeeded();
