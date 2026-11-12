@@ -324,6 +324,7 @@ async function processInstaMsg({ messagingEvent, igAccount, uid }) {
               ? `${process.env.FRONTENDURI}/meta-media/${fileName}`
               : mediaUrl || "",
             caption: attachment.payload?.title || "",
+            filename: attachment.payload?.title || fileNameFromUrl(mediaUrl),
           },
         };
       } else if (attType === "share" || attType === "fallback") {
@@ -649,6 +650,17 @@ async function resolveOrCreateChat({
   );
 
   return chatId;
+}
+
+// [CUSTOM] original file name from a Meta CDN url (…/123_n.pdf/Invoice.pdf?…)
+function fileNameFromUrl(u) {
+  try {
+    const last = String(u || "").split("?")[0].split("/").pop();
+    const name = decodeURIComponent(last || "");
+    return /\.[a-z0-9]{1,5}$/i.test(name) ? name : "";
+  } catch (e) {
+    return "";
+  }
 }
 
 module.exports = {

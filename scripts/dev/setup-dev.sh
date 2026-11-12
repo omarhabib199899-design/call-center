@@ -22,7 +22,7 @@ DEV_DB="${DEV_DB:-hunaixon_automation_dev}"
 DEV_URL="${DEV_URL:-https://dev.hunaix.online}"
 REPO="https://github.com/omarhabib199899-design/call-center.git"
 
-envval() { grep -E "^$1=" "$PROD/.env" | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"; }
+envval() { grep -E "^$1=" "$PROD/.env" | tail -1 | cut -d= -f2- | tr -d "\r" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"; }
 PROD_DB="$(envval DBNAME)"; DBUSER="$(envval DBUSER)"; DBPASS="$(envval DBPASS)"
 DBHOST="$(envval DBHOST)"; DBHOST="${DBHOST:-localhost}"
 

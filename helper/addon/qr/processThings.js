@@ -573,6 +573,7 @@ async function processBaileysMsg({
             downloadResult.success ? downloadResult.fileName : ""
           }`,
           caption: doc.caption || doc.title || "",
+          filename: doc.fileName || doc.title || "", // [CUSTOM] show the real name
         },
       };
       if (doc.contextInfo?.quotedMessage) {
@@ -589,6 +590,7 @@ async function processBaileysMsg({
             downloadResult.success ? downloadResult.fileName : ""
           }`,
           caption: doc.caption || doc.title || doc.fileName || "",
+          filename: doc.fileName || doc.title || "", // [CUSTOM] show the real name
         },
       };
       if (doc.contextInfo?.quotedMessage) {

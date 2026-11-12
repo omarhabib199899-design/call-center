@@ -781,12 +781,38 @@ function processSocketEvent({
 
           let sendMsg;
 
+          // [CUSTOM] reply to a specific message (WhatsApp, Messenger, Instagram)
+          let quotedRow = null;
+          if (
+            payload?.replyTo?.metaChatId &&
+            ["qr", "meta", "messenger", "instagram"].includes(chatInfo?.origin)
+          ) {
+            try {
+              [quotedRow] = await query(
+                `SELECT * FROM beta_conversation WHERE metaChatId = ? AND chat_id = ? AND uid = ? LIMIT 1`,
+                [
+                  payload.replyTo.metaChatId,
+                  chatInfo.chat_id,
+                  isAgent ? socket?.userData?.owner_uid : uid,
+                ],
+              );
+            } catch (e) {
+              quotedRow = null;
+            }
+            // ids we made up ourselves (no real Meta/WhatsApp id) can't be quoted
+            if (quotedRow && /^(msng_|ig_|srccard_)/.test(String(quotedRow.metaChatId))) {
+              quotedRow = null;
+            }
+            if (quotedRow) msgObj.context = quotedRow;
+          }
+
           if (chatInfo?.origin === "qr") {
             sendMsg = await sendQrMsg({
               msgObj: msgCon,
               to: senderMobile,
               uid: isAgent ? socket?.userData?.owner_uid : uid,
               chatInfo,
+              quotedRow,
             });
           } else if (chatInfo?.origin === "instagram") {
             sendMsg = await sendInstaMsg({
@@ -794,6 +820,7 @@ function processSocketEvent({
               to: senderMobile, // this is the other person's IGSID
               uid: isAgent ? socket?.userData?.owner_uid : uid,
               chatInfo,
+              replyToId: quotedRow?.metaChatId || null,
             });
           } else if (chatInfo?.origin === "instagram_comment") {
             // ✅ ADD THIS
@@ -809,12 +836,14 @@ function processSocketEvent({
               to: senderMobile,
               uid: isAgent ? socket?.userData?.owner_uid : uid,
               chatInfo,
+              replyToId: quotedRow?.metaChatId || null,
             });
           } else if (chatInfo?.origin === "meta") {
             sendMsg = await sendMetaMsg({
               msgObj: msgCon,
               to: senderMobile,
               uid: isAgent ? socket?.userData?.owner_uid : uid,
+              replyToId: quotedRow?.metaChatId || null,
             });
           } else if (chatInfo?.origin === "telegram") {
             sendMsg = await sendMessageTelegram({
