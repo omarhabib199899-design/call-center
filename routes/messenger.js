@@ -237,6 +237,7 @@ router.get("/callback", async (req, res) => {
     // Facebook login brings in the Instagram inbox without a second login.
     // Failures here never affect the Messenger connection above.
     let instaNote = "";
+    let instaChainUrl = null; // [CUSTOM] see helper/instaChain.js
     try {
       const insta = await linkInstagramForPages({
         uid,
@@ -252,6 +253,9 @@ router.get("/callback", async (req, res) => {
       );
 
       if (insta.linked.length) {
+        instaChainUrl = await require("../helper/instaChain.js")
+          .instaAuthUrl(uid)
+          .catch(() => null);
         instaNote = `<p>📷 Instagram: ${insta.linked
           .map((u) => "@" + u)
           .join(", ")}</p>`;
@@ -260,6 +264,17 @@ router.get("/callback", async (req, res) => {
       }
     } catch (e) {
       logger.log("[messenger] Instagram link step failed: " + e.message);
+    }
+
+    // [CUSTOM] Instagram accounts found: show the activation list instead.
+    if (instaChainUrl) {
+      return res.send(
+        await require("../helper/instaChain.js").activatePage({
+          uid,
+          pageStyle,
+          pageCount: pagesData.data.length,
+        }),
+      );
     }
 
     return res.send(`<html><body style="${pageStyle}">
@@ -394,5 +409,9 @@ router.get("/debug-callback-uri", async (req, res) => {
   const callbackUri = `${process.env.BACKURI}/api/messenger/callback`;
   res.json({ callbackUri });
 });
+
+// [CUSTOM] "Activate Instagram messages" list (helper/instaChain.js)
+router.get("/ig-activate-status", (req, res) => require("../helper/instaChain.js").statusRoute(req, res));
+router.get("/ig-activate", (req, res) => require("../helper/instaChain.js").activateRoute(req, res));
 
 module.exports = router;

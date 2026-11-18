@@ -1,21 +1,4 @@
-/**
- * [CUSTOM] Lead Sources page (/#ad-sources in the new panel).
- * Owner-only. Mounted at /api/omni_leads.
- *
- * Reads chat_ad_source (filled by helper/adSource.js and helper/socialSource.js:
- * one row per customer per ad/post they arrived from). Nothing is written.
- *
- *   GET /overview?from=YYYY-MM-DD&to=YYYY-MM-DD&platform=
- *       KPIs, per-platform split, previous period comparison
- *   GET /ads?from&to&platform&q&page&size
- *       one row per ad, newest lead first inside equal counts
- *   GET /customers?source_id&from&to&page
- *       customers who came from one ad
- *
- * Platform = where the ad ran: the ad link decides first (instagram.com,
- * facebook.com / fb.me, tiktok.com); otherwise the inbox it arrived in.
- * An ad is "Active" while it brought a customer in the last 7 days.
- */
+// Lead Sources page (/#ad-sources in the new panel)
 
 const express = require("express");
 const router = express.Router();
@@ -34,7 +17,7 @@ function fail(res, err) {
   res.json({ success: false, msg: "something went wrong" });
 }
 
-/** SQL expression giving the platform of a row. */
+// SQL expression giving the platform of a row
 const PLATFORM_SQL = `CASE
   WHEN source_url LIKE '%instagram.%' THEN 'instagram'
   WHEN source_url LIKE '%facebook.%' OR source_url LIKE '%fb.me%' OR source_url LIKE '%fb.com%' OR source_url LIKE '%fb.watch%' THEN 'facebook'
@@ -47,14 +30,16 @@ const PLATFORM_SQL = `CASE
 const DAY = 86400000;
 const iso = (d) => d.toISOString().slice(0, 10);
 
-/** [from, to) as Date objects, plus the previous period of the same length. */
+// [from, to) as Date objects, plus the previous period of the same length
 function range(q) {
   const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z");
   let to = /^\d{4}-\d{2}-\d{2}$/.test(q.to || "") ? new Date(q.to + "T00:00:00Z") : today;
-  let from = /^\d{4}-\d{2}-\d{2}$/.test(q.from || "") ? new Date(q.from + "T00:00:00Z") : new Date(to - 29 * DAY);
+  let from = /^\d{4}-\d{2}-\d{2}$/.test(q.from || "")
+    ? new Date(q.from + "T00:00:00Z")
+    : new Date(to - 29 * DAY);
   if (from > to) [from, to] = [to, from];
   if (to - from > 366 * DAY) from = new Date(to - 366 * DAY);
-  const end = new Date(+to + DAY); // inclusive "to"
+  const end = new Date(+to + DAY);
   const len = end - from;
   return { from, end, prevFrom: new Date(from - len), prevEnd: from, days: Math.round(len / DAY) };
 }
@@ -81,8 +66,14 @@ router.get("/overview", validateUser, async (req, res) => {
     const prev = where(uid, r.prevFrom, r.prevEnd, platform);
 
     const [[tot], [ptot]] = await Promise.all([
-      query(`SELECT COUNT(DISTINCT chat_id) leads, COUNT(DISTINCT source_id) ads FROM chat_ad_source WHERE ${cur.sql}`, cur.params),
-      query(`SELECT COUNT(DISTINCT chat_id) leads, COUNT(DISTINCT source_id) ads FROM chat_ad_source WHERE ${prev.sql}`, prev.params),
+      query(
+        `SELECT COUNT(DISTINCT chat_id) leads, COUNT(DISTINCT source_id) ads FROM chat_ad_source WHERE ${cur.sql}`,
+        cur.params,
+      ),
+      query(
+        `SELECT COUNT(DISTINCT chat_id) leads, COUNT(DISTINCT source_id) ads FROM chat_ad_source WHERE ${prev.sql}`,
+        prev.params,
+      ),
     ]);
 
     const byPlat = await query(
@@ -97,7 +88,7 @@ router.get("/overview", validateUser, async (req, res) => {
     );
     const prevMap = new Map(byPlatPrev.map((p) => [p.platform, Number(p.leads)]));
 
-    // Ads active right now = brought someone in the last 7 days (any period filter aside).
+    // Ads active right now = brought someone in the last 7 days (any period filter aside)
     const act = where(uid, new Date(Date.now() - ACTIVE_DAYS * DAY), new Date(Date.now() + DAY), platform);
     const [[active]] = await Promise.all([
       query(`SELECT COUNT(DISTINCT source_id) n FROM chat_ad_source WHERE ${act.sql}`, act.params),
@@ -164,7 +155,7 @@ router.get("/ads", validateUser, async (req, res) => {
     const q = String(req.query.q || "").trim();
     const size = Math.min(100, Math.max(1, parseInt(req.query.size, 10) || 6));
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const all = String(req.query.all || "") === "1"; // CSV export
+    const all = String(req.query.all || "") === "1";
 
     let extra = "";
     const xp = [];
@@ -179,7 +170,10 @@ router.get("/ads", validateUser, async (req, res) => {
       `SELECT COUNT(DISTINCT chat_id) leads FROM chat_ad_source WHERE ${where(uid, r.from, r.end, platform).sql}`,
       where(uid, r.from, r.end, platform).params,
     );
-    const [{ n }] = await query(`SELECT COUNT(DISTINCT source_id) n FROM chat_ad_source WHERE ${w.sql}`, params);
+    const [{ n }] = await query(
+      `SELECT COUNT(DISTINCT source_id) n FROM chat_ad_source WHERE ${w.sql}`,
+      params,
+    );
 
     const rows = await query(
       `SELECT source_id, MAX(ad_title) ad_title, MAX(ad_body) ad_body, MAX(source_url) source_url,
@@ -192,7 +186,7 @@ router.get("/ads", validateUser, async (req, res) => {
       params,
     );
 
-    // "Active" looks at all time, not just the selected period.
+    // "Active" looks at all time, not just the selected period
     const ids = rows.map((x) => x.source_id).filter((x) => x != null);
     const lastEver = ids.length
       ? await query(
@@ -242,7 +236,13 @@ router.get("/customers", validateUser, async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const size = 10;
     const sid = req.query.source_id;
-    const w = where(uid, r.from, r.end, "", sid === "" || sid == null ? " AND source_id IS NULL" : " AND source_id = ?");
+    const w = where(
+      uid,
+      r.from,
+      r.end,
+      "",
+      sid === "" || sid == null ? " AND source_id IS NULL" : " AND source_id = ?",
+    );
     const params = sid === "" || sid == null ? w.params : [...w.params, String(sid)];
     const [{ n }] = await query(`SELECT COUNT(*) n FROM chat_ad_source WHERE ${w.sql}`, params);
     const rows = await query(

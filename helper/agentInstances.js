@@ -1,72 +1,35 @@
-/**
- * Agent <-> WhatsApp number (instance) assignment.
- *
- * The stock product only lets an agent be assigned to individual chats
- * (beta_chats.assigned_agent). This module adds assignment at the number
- * level: an agent assigned to a number sees every chat that arrived on it.
- *
- * Chats record their number in beta_chats.origin_instance_id, which holds
- * JSON written by the QR layer, e.g.
- *   {"id":"201094646331:63@s.whatsapp.net","lid":"1867753099:63@lid"}
- * so a number is matched with a LIKE against the "id" field.
- *
- * Everything here is additive: chat-level assignment keeps working exactly
- * as before, and an agent with no numbers assigned behaves as it always did.
- */
+// Agent <-> WhatsApp number (instance) assignment
 
 const { query } = require("../database/dbpromise");
 
-/** Digits only — guards the LIKE patterns against anything odd in the DB. */
+// Digits only — guards the LIKE patterns against anything odd in the DB
 function normalizeNumber(raw) {
   return String(raw || "").replace(/\D/g, "");
 }
 
-/**
- * Numbers assigned to one agent.
- * @returns {Promise<string[]>} normalized numbers, possibly empty
- */
+// Numbers assigned to one agent
 async function getAgentNumbers(agentUid) {
   if (!agentUid) return [];
 
   try {
-    const rows = await query(
-      `SELECT instance_number FROM agent_instances WHERE agent_uid = ?`,
-      [agentUid],
-    );
+    const rows = await query(`SELECT instance_number FROM agent_instances WHERE agent_uid = ?`, [agentUid]);
 
-    return rows
-      .map((r) => normalizeNumber(r.instance_number))
-      .filter((n) => n.length > 0);
+    return rows.map((r) => normalizeNumber(r.instance_number)).filter((n) => n.length > 0);
   } catch (err) {
-    // A missing table must not take the inbox down — fall back to
-    // stock behaviour (chat-level assignment only).
+    // Missing table: fall back to chat-level assignment only
     if (err?.code === "ER_NO_SUCH_TABLE") return [];
     throw err;
   }
 }
 
-/**
- * SQL fragment restricting beta_chats to what an agent may see.
- *
- * Returns the stock chat-level condition OR'd with the agent's numbers:
- *   assigned_agent LIKE '%"id":5%'
- *   OR assigned_agent LIKE '%"id":"5"%'
- *   OR origin_instance_id LIKE '%"id":"201094646331%'
- *
- * @param {number|string} agentId  agents.id, as used by the stock filter
- * @param {string} agentUid        agents.uid
- * @returns {Promise<{sql: string, params: any[]}>}
- */
+// SQL fragment restricting beta_chats to what an agent may see
 async function buildAgentChatCondition(agentId, agentUid) {
-  // [CUSTOM] The id must end right after the digits. The stock pattern
-  // '%"id":1%' also matched agents 10-19, 100+..., so agent 1 saw chats
-  // assigned to agent 12.
+  // The id must end right after the digits
   const id = String(agentId).replace(/\D/g, "");
   const manual = [`assigned_agent LIKE ?`, `assigned_agent LIKE ?`, `assigned_agent LIKE ?`];
   const params = [`%"id":${id},%`, `%"id":${id}}%`, `%"id":"${id}"%`];
 
-  // [CUSTOM] Rules from the Agents & Channels page (helper/omniAccess.js):
-  // deactivated accounts and VIP customers. Empty when not in use.
+  // Paused accounts and VIP customers (helper/omniAccess.js)
   let rules = { deactivated: new Set(), vip: [] };
   try {
     const [me] = await query(`SELECT owner_uid FROM agents WHERE uid = ? LIMIT 1`, [agentUid]);
@@ -75,7 +38,7 @@ async function buildAgentChatCondition(agentId, agentUid) {
     console.error("[agentInstances] access rules:", err?.message || err);
   }
 
-  // Whole accounts assigned to this agent.
+  // Whole accounts assigned to this agent
   const account = [];
   const accountParams = [];
 
@@ -83,9 +46,7 @@ async function buildAgentChatCondition(agentId, agentUid) {
 
   for (const number of numbers) {
     if (rules.deactivated.has(`qr:${number}`)) continue;
-    // [CUSTOM] WhatsApp chats only (Pages/Instagram are matched by
-    // agentAccounts below), and the number must end at ':' or '@' so
-    // 2010946 cannot match 201094646331.
+    // WhatsApp chats only; the number must end at ':' or '@' so one number can't match a longer one
     account.push(
       `(origin NOT IN ('messenger','instagram','instagram_comment','telegram') AND ` +
         `(origin_instance_id LIKE ? OR origin_instance_id LIKE ?))`,
@@ -93,9 +54,7 @@ async function buildAgentChatCondition(agentId, agentUid) {
     accountParams.push(`%"id":"${number}:%`, `%"id":"${number}@%`);
   }
 
-  // [CUSTOM] Facebook Pages, Instagram accounts, Cloud API and Telegram
-  // assigned to this agent (helper/agentAccounts.js). Required lazily:
-  // agentAccounts requires this file too.
+  // Pages, Instagram, Cloud API and Telegram assigned to this agent
   try {
     const A = require("./agentAccounts");
     for (const key of await A.getAgentAccountKeys(agentUid)) {
@@ -111,16 +70,17 @@ async function buildAgentChatCondition(agentId, agentUid) {
   }
 
   const { inList } = require("./omniAccess");
-  // VIP customers given to someone else only: hide them from this agent's
-  // whole-account access.
+  // VIP customers given to someone else only: hide them from this agent's whole-account access
   const taken = inList(
     "chat_id",
     rules.vip.filter((v) => Number(v.exclusive) && v.agent_uid !== agentUid).map((v) => v.chat_id),
   );
-  // VIP customers given to this agent (not on a deactivated account).
+  // VIP customers given to this agent (not on a deactivated account)
   const mine = inList(
     "chat_id",
-    rules.vip.filter((v) => v.agent_uid === agentUid && !rules.deactivated.has(v.acc_key)).map((v) => v.chat_id),
+    rules.vip
+      .filter((v) => v.agent_uid === agentUid && !rules.deactivated.has(v.acc_key))
+      .map((v) => v.chat_id),
   );
 
   const clauses = [...manual];
@@ -142,12 +102,7 @@ async function buildAgentChatCondition(agentId, agentUid) {
   return { sql: `(${clauses.join(" OR ")})`, params };
 }
 
-/**
- * Agents who should be notified about a chat: those assigned to the chat
- * itself plus those assigned to the number it arrived on.
- *
- * @returns {Promise<Array<{id:number, uid:string, name:string, email:string}>>}
- */
+// Agents to notify: assigned to the chat, or to the number it came in on
 async function getAgentsForChat({ ownerUid, chatId }) {
   if (!ownerUid || !chatId) return [];
 
@@ -159,10 +114,10 @@ async function getAgentsForChat({ ownerUid, chatId }) {
 
   if (!chat) return [];
 
-  const byUid = new Map(); // assigned to the chat by hand
-  const viaAccount = new Map(); // [CUSTOM] assigned to the account it came in on
+  const byUid = new Map();
+  const viaAccount = new Map(); // assigned to the account it came in on
 
-  // 1. Agents assigned to this specific chat (stock behaviour).
+  // 1. Agents assigned to this specific chat (stock behaviour)
   try {
     const parsed = chat.assigned_agent ? JSON.parse(chat.assigned_agent) : [];
     const list = Array.isArray(parsed) ? parsed : [parsed].filter(Boolean);
@@ -170,10 +125,10 @@ async function getAgentsForChat({ ownerUid, chatId }) {
       if (a?.uid) byUid.set(a.uid, a);
     }
   } catch {
-    // assigned_agent is free-form text in the schema; ignore bad JSON.
+    // assigned_agent is free-form text in the schema; ignore bad JSON
   }
 
-  // 2. Agents assigned to the number this chat arrived on.
+  // 2. Agents assigned to the number this chat arrived on
   const instanceId = String(chat.origin_instance_id || "");
   const match = instanceId.match(/"id":"(\d+)/);
 
@@ -195,7 +150,7 @@ async function getAgentsForChat({ ownerUid, chatId }) {
     }
   }
 
-  // 3. [CUSTOM] Agents assigned to the Page / Instagram account / channel.
+  // 3. Agents assigned to the Page / Instagram account / channel
   try {
     const rows = await require("./agentAccounts").getAccountAgentsForChat({
       ownerUid,
@@ -209,7 +164,7 @@ async function getAgentsForChat({ ownerUid, chatId }) {
     console.error("[agentInstances] account agents:", err?.message || err);
   }
 
-  // 4. [CUSTOM] Deactivated account / VIP customer (helper/omniAccess.js).
+  // 4. Deactivated account / VIP customer (helper/omniAccess.js)
   try {
     const rules = await require("./omniAccess").rulesFor(ownerUid);
     const key = chatAccountKey(chat);
@@ -234,7 +189,7 @@ async function getAgentsForChat({ ownerUid, chatId }) {
   return [...byUid.values()];
 }
 
-/** [CUSTOM] "qr:2010...", "messenger:123", ... for the account a chat came in on. */
+// "qr:2010...", "messenger:123", ..
 function chatAccountKey(chat) {
   const origin = String(chat?.origin || "");
   const inst = String(chat?.origin_instance_id || "");
@@ -247,11 +202,7 @@ function chatAccountKey(chat) {
   return `qr:${normalizeNumber(id)}`;
 }
 
-/**
- * [CUSTOM] The agent fields that may be stored in beta_chats.assigned_agent.
- * Stock code stored the whole agents row (password hash, push tokens, logs)
- * in every assigned chat, and that JSON is sent to browsers.
- */
+// The agent fields that may be stored in beta_chats.assigned_agent
 function publicAgent(a) {
   if (!a || typeof a !== "object") return a;
   return {
@@ -266,7 +217,7 @@ function publicAgent(a) {
   };
 }
 
-/** [CUSTOM] Strip private agent fields from old chats, a batch per call. */
+// Strip private agent fields from old chats, a batch per call
 async function scrubAssignedAgents(limit = 300) {
   const rows = await query(
     `SELECT id, assigned_agent FROM beta_chats
@@ -278,10 +229,10 @@ async function scrubAssignedAgents(limit = 300) {
     try {
       const parsed = JSON.parse(row.assigned_agent);
       const list = (Array.isArray(parsed) ? parsed : [parsed]).filter(Boolean);
-      await query(
-        `UPDATE beta_chats SET assigned_agent = ?, updatedAt = updatedAt WHERE id = ?`,
-        [JSON.stringify(list.map(publicAgent)), row.id],
-      );
+      await query(`UPDATE beta_chats SET assigned_agent = ?, updatedAt = updatedAt WHERE id = ?`, [
+        JSON.stringify(list.map(publicAgent)),
+        row.id,
+      ]);
       fixed += 1;
     } catch (e) {}
   }

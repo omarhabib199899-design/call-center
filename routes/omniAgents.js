@@ -1,38 +1,4 @@
-/**
- * [CUSTOM] Backend for the new Agents & Channels page (/new/#agent-accounts).
- * Owner-only (validateUser). Mounted at /api/omni_agents.
- *
- * Builds on routes/agentAccounts.js (which stays as it is, the classic page
- * still uses it) and adds:
- *
- *   GET  /state                       custom agents, limits, account states, VIP
- *   POST /save_batch                  save many agents (+ VIP) at once, logged
- *   GET  /history?days=30             assignment history
- *   POST /revert          {id}        undo one logged save
- *
- *   Custom agents
- *   GET  /custom                      (kept for older builds)
- *   POST /mark_custom     {email|uid} make an agent of yours a custom agent
- *   POST /unmark_custom   {uid}
- *   GET  /search_agents?q=            pick an existing agent of yours
- *   POST /invite          {name,email,mobile,limit}  new agent + email
- *   POST /agent/update    {uid,name,mobile,limit}    email stays locked
- *   POST /agent/remove    {uid}       deletes the agent
- *
- *   Accounts
- *   GET  /account/impact?key=         agents + chats on an account
- *   POST /account/rename  {key,label}
- *   POST /account/deactivate {key,reason,note}
- *   POST /account/reactivate {key}
- *   POST /account/delete  {key,confirm}
- *
- *   VIP customers
- *   GET  /customers?key=&q=&page=     chats on an account, with who has them
- *
- * Tables are created on first use. Nothing here changes stock tables except:
- * agents (insert/update/delete, same as the stock agent routes), instance.title
- * on rename, and the account rows on delete (same as the stock delete routes).
- */
+// Backend for the new Agents & Channels page (/new/#agent-accounts)
 
 const express = require("express");
 const router = express.Router();
@@ -56,8 +22,6 @@ const { invalidate } = require("../helper/omniAccess");
 
 const HISTORY_DAYS = 90;
 
-/* ---------- tables ---------------------------------------------------- */
-
 let ready = null;
 function ensure() {
   if (!ready) {
@@ -70,7 +34,7 @@ function ensure() {
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY uniq_agent (owner_uid, agent_uid)
       )`);
-      // Added in v4; the table may already exist from the first version.
+      // Added in v4; the table may already exist from the first version
       await query(`ALTER TABLE omni_custom_agents ADD COLUMN invited TINYINT DEFAULT 0`).catch((e) => {
         if (e?.code !== "ER_DUP_FIELDNAME") throw e;
       });
@@ -80,7 +44,7 @@ function ensure() {
         account_limit INT NULL,
         PRIMARY KEY (owner_uid, agent_uid)
       )`);
-      // Added with the Home "Target achievement" column.
+      // Added with the Home "Target achievement" column
       await query(`ALTER TABLE omni_agent_settings ADD COLUMN sales_target DECIMAL(14,2) NULL`).catch((e) => {
         if (e?.code !== "ER_DUP_FIELDNAME") throw e;
       });
@@ -146,14 +110,17 @@ async function getAgents(ownerUid) {
   );
 }
 
-const firstName = (n) => String(n || "").trim().split(/\s+/)[0] || "Agent";
+const firstName = (n) =>
+  String(n || "")
+    .trim()
+    .split(/\s+/)[0] || "Agent";
 function joinNames(names) {
   if (names.length <= 1) return names[0] || "";
   if (names.length <= 3) return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   return `${names.slice(0, 2).join(", ")} and ${names.length - 2} others`;
 }
 
-/** True once the agent has logged in at least once (stock login writes logs). */
+// True once the agent has logged in at least once (stock login writes logs)
 function hasLoggedIn(logs) {
   try {
     const t = JSON.parse(logs || "{}")?.dateTracking || {};
@@ -192,8 +159,6 @@ const channelOf = (key) => {
   return c === "qr" || c === "meta" ? "whatsapp" : c === "messenger" ? "facebook" : c;
 };
 
-/* ---------- assignment core (same writes as agentAccounts /set) ------- */
-
 async function writeAgentAccounts(ownerUid, agent, keys) {
   const numbers = keys.filter((k) => k.startsWith("qr:"));
   await query(`DELETE FROM agent_instances WHERE owner_uid = ? AND agent_uid = ?`, [
@@ -223,8 +188,12 @@ async function accountStates(ownerUid) {
 }
 
 async function limits(ownerUid) {
-  const rows = await query(`SELECT agent_uid, account_limit FROM omni_agent_settings WHERE owner_uid = ?`, [ownerUid]);
-  return new Map(rows.filter((r) => r.account_limit != null).map((r) => [r.agent_uid, Number(r.account_limit)]));
+  const rows = await query(`SELECT agent_uid, account_limit FROM omni_agent_settings WHERE owner_uid = ?`, [
+    ownerUid,
+  ]);
+  return new Map(
+    rows.filter((r) => r.account_limit != null).map((r) => [r.agent_uid, Number(r.account_limit)]),
+  );
 }
 
 async function vipRows(ownerUid, where = "", params = []) {
@@ -234,7 +203,7 @@ async function vipRows(ownerUid, where = "", params = []) {
   ]);
 }
 
-/** Replace one agent's VIP customers on one account. */
+// Replace one agent's VIP customers on one account
 async function setVip(ownerUid, { agent_uid, acc_key, chat_ids, exclusive }) {
   const ids = [...new Set((chat_ids || []).map(String).filter(Boolean))];
   if (ids.length) {
@@ -260,10 +229,7 @@ async function setVip(ownerUid, { agent_uid, acc_key, chat_ids, exclusive }) {
   }
 }
 
-/**
- * Apply a set of changes and log them as one entry.
- * changes: { agents: { uid: [keys] }, vip: [{agent_uid, acc_key, chat_ids, exclusive}] }
- */
+// Apply a set of changes and log them as one entry
 async function applyBatch(ownerUid, changes, { kind = "assign", summary, revertOf } = {}) {
   const agents = await getAgents(ownerUid);
   const byUid = new Map(agents.map((a) => [a.uid, a]));
@@ -289,7 +255,7 @@ async function applyBatch(ownerUid, changes, { kind = "assign", summary, revertO
       .filter(Boolean)
       .map((p) => toKey(p.channel, p.account_id))
       .filter((k) => owned.has(k))
-      // A deactivated account can't be newly given to anyone.
+      // A deactivated account can't be newly given to anyone
       .filter((k) => prevSet.has(k) || !Number(states.get(k)?.deactivated));
     const max = lim.get(uid);
     if (max != null && keys.length > max && keys.length > prev.length) {
@@ -301,7 +267,7 @@ async function applyBatch(ownerUid, changes, { kind = "assign", summary, revertO
   }
   if (errors.length) return { errors };
 
-  // VIP: only for owned accounts and existing agents.
+  // VIP: only for owned accounts and existing agents
   const vipChanges = (changes.vip || []).filter((v) => byUid.has(v.agent_uid) && owned.has(v.acc_key));
   const vipBefore = [];
   for (const v of vipChanges) {
@@ -350,8 +316,12 @@ async function applyBatch(ownerUid, changes, { kind = "assign", summary, revertO
   const accName = (k) => owned.get(k)?.name || k;
   let text = summary;
   if (!text) {
-    const allAdded = [...new Set(Object.keys(after).flatMap((u) => after[u].filter((k) => !before[u].includes(k))))];
-    const allRemoved = [...new Set(Object.keys(after).flatMap((u) => before[u].filter((k) => !after[u].includes(k))))];
+    const allAdded = [
+      ...new Set(Object.keys(after).flatMap((u) => after[u].filter((k) => !before[u].includes(k)))),
+    ];
+    const allRemoved = [
+      ...new Set(Object.keys(after).flatMap((u) => before[u].filter((k) => !after[u].includes(k)))),
+    ];
     const parts = [];
     if (allAdded.length)
       parts.push(
@@ -360,7 +330,9 @@ async function applyBatch(ownerUid, changes, { kind = "assign", summary, revertO
         }`,
       );
     if (allRemoved.length)
-      parts.push(`${parts.length ? "removed" : "Removed"} access to ${allRemoved.length === 1 ? accName(allRemoved[0]) : `${allRemoved.length} accounts`}`);
+      parts.push(
+        `${parts.length ? "removed" : "Removed"} access to ${allRemoved.length === 1 ? accName(allRemoved[0]) : `${allRemoved.length} accounts`}`,
+      );
     if (vipChanges.length)
       parts.push(
         `${parts.length ? "set" : "Set"} ${vipCount} VIP ${vipCount === 1 ? "customer" : "customers"} in ${accName(vipChanges[0].acc_key)}`,
@@ -380,20 +352,20 @@ async function applyBatch(ownerUid, changes, { kind = "assign", summary, revertO
   return { entry, added, removed };
 }
 
-/* ---------- state ----------------------------------------------------- */
-
 router.get("/state", validateUser, async (req, res) => {
   try {
     await ensure();
     const ownerUid = own(req);
     const agents = await getAgents(ownerUid);
     const known = new Set(agents.map((a) => a.uid));
-    const customRows = await query(`SELECT agent_uid, invited FROM omni_custom_agents WHERE owner_uid = ?`, [ownerUid]);
+    const customRows = await query(`SELECT agent_uid, invited FROM omni_custom_agents WHERE owner_uid = ?`, [
+      ownerUid,
+    ]);
     const lim = await limits(ownerUid);
     const states = await accountStates(ownerUid);
     const vip = await vipRows(ownerUid);
 
-    // Names of VIP customers, for the account cards and the drawer.
+    // Names of VIP customers, for the account cards and the drawer
     const ids = vip.map((v) => v.chat_id);
     const names = ids.length
       ? await query(
@@ -412,20 +384,31 @@ router.get("/state", validateUser, async (req, res) => {
           .filter((r) => known.has(r.agent_uid))
           .map((r) => {
             const a = agents.find((x) => x.uid === r.agent_uid);
-            return { uid: r.agent_uid, invited: !!Number(r.invited), pending: !!Number(r.invited) && !hasLoggedIn(a?.logs) };
+            return {
+              uid: r.agent_uid,
+              invited: !!Number(r.invited),
+              pending: !!Number(r.invited) && !hasLoggedIn(a?.logs),
+            };
           }),
         limits: Object.fromEntries(lim),
         targets: Object.fromEntries(
-          (await query(`SELECT agent_uid, sales_target FROM omni_agent_settings WHERE owner_uid = ? AND sales_target IS NOT NULL`, [ownerUid])).map((r) => [
-            r.agent_uid,
-            Number(r.sales_target),
-          ]),
+          (
+            await query(
+              `SELECT agent_uid, sales_target FROM omni_agent_settings WHERE owner_uid = ? AND sales_target IS NOT NULL`,
+              [ownerUid],
+            )
+          ).map((r) => [r.agent_uid, Number(r.sales_target)]),
         ),
         mobiles: Object.fromEntries(agents.map((a) => [a.uid, a.mobile || ""])),
         accounts: Object.fromEntries(
           [...states].map(([k, s]) => [
             k,
-            { label: s.label || null, deactivated: !!Number(s.deactivated), reason: s.reason, changedAt: s.changedAt },
+            {
+              label: s.label || null,
+              deactivated: !!Number(s.deactivated),
+              reason: s.reason,
+              changedAt: s.changedAt,
+            },
           ]),
         ),
         vip: vip.map((v) => ({
@@ -442,8 +425,6 @@ router.get("/state", validateUser, async (req, res) => {
     fail(res, err);
   }
 });
-
-/* ---------- save / history / revert ----------------------------------- */
 
 router.post("/save_batch", validateUser, async (req, res) => {
   try {
@@ -500,16 +481,17 @@ router.post("/revert", validateUser, async (req, res) => {
       req.body?.id,
       ownerUid,
     ]);
-    if (!row || row.kind !== "assign" || !row.payload) return res.json({ success: false, msg: "This change can't be reverted" });
+    if (!row || row.kind !== "assign" || !row.payload)
+      return res.json({ success: false, msg: "This change can't be reverted" });
     if (row.reverted_by) return res.json({ success: false, msg: "Already reverted" });
 
     const p = JSON.parse(row.payload);
-    // Agents deleted since then are skipped by applyBatch.
+    // Agents deleted since then are skipped by applyBatch
     const agents = await getAgents(ownerUid);
     const known = new Set(agents.map((a) => a.uid));
     const restore = Object.fromEntries(Object.entries(p.before || {}).filter(([u]) => known.has(u)));
 
-    // VIP: drop what that save set, put back what was there before it.
+    // VIP: drop what that save set, put back what was there before it
     const vipNow = [];
     for (const v of p.vip || []) {
       await query(`DELETE FROM omni_vip WHERE owner_uid = ? AND agent_uid = ? AND acc_key = ?`, [
@@ -529,18 +511,25 @@ router.post("/revert", validateUser, async (req, res) => {
     }
     invalidate(ownerUid);
 
-    const out = await applyBatch(ownerUid, { agents: restore }, { kind: "revert", summary: `Reverted: ${row.summary}`, revertOf: row.id });
+    const out = await applyBatch(
+      ownerUid,
+      { agents: restore },
+      { kind: "revert", summary: `Reverted: ${row.summary}`, revertOf: row.id },
+    );
     if (out.errors) return res.json({ success: false, msg: out.errors.join(". ") });
     let id = out.entry;
-    if (!id) id = await log(ownerUid, { kind: "revert", summary: `Reverted: ${row.summary}`, agents: JSON.parse(row.agents || "[]") });
+    if (!id)
+      id = await log(ownerUid, {
+        kind: "revert",
+        summary: `Reverted: ${row.summary}`,
+        agents: JSON.parse(row.agents || "[]"),
+      });
     await query(`UPDATE omni_history SET reverted_by = ? WHERE id = ?`, [id, row.id]);
     res.json({ success: true, data: { id } });
   } catch (err) {
     fail(res, err);
   }
 });
-
-/* ---------- custom agents --------------------------------------------- */
 
 router.get("/custom", validateUser, async (req, res) => {
   try {
@@ -560,15 +549,28 @@ router.get("/custom", validateUser, async (req, res) => {
 router.post("/mark_custom", validateUser, async (req, res) => {
   try {
     await ensure();
-    const email = String(req.body?.email || "").trim().toLowerCase();
+    const email = String(req.body?.email || "")
+      .trim()
+      .toLowerCase();
     const uid = String(req.body?.uid || "");
     if (!email && !uid) return res.json({ success: false, msg: "Email is required" });
     const [agent] = uid
       ? await query(`SELECT uid, name FROM agents WHERE owner_uid = ? AND uid = ? LIMIT 1`, [own(req), uid])
-      : await query(`SELECT uid, name FROM agents WHERE owner_uid = ? AND LOWER(email) = ? LIMIT 1`, [own(req), email]);
+      : await query(`SELECT uid, name FROM agents WHERE owner_uid = ? AND LOWER(email) = ? LIMIT 1`, [
+          own(req),
+          email,
+        ]);
     if (!agent) return res.json({ success: false, msg: "Agent not found" });
-    await query(`INSERT IGNORE INTO omni_custom_agents (owner_uid, agent_uid) VALUES (?, ?)`, [own(req), agent.uid]);
-    if (uid) await log(own(req), { kind: "custom", summary: `Added ${agent.name} as a custom agent`, agents: [agent.name] });
+    await query(`INSERT IGNORE INTO omni_custom_agents (owner_uid, agent_uid) VALUES (?, ?)`, [
+      own(req),
+      agent.uid,
+    ]);
+    if (uid)
+      await log(own(req), {
+        kind: "custom",
+        summary: `Added ${agent.name} as a custom agent`,
+        agents: [agent.name],
+      });
     res.json({ success: true, data: { uid: agent.uid } });
   } catch (err) {
     fail(res, err);
@@ -578,27 +580,42 @@ router.post("/mark_custom", validateUser, async (req, res) => {
 router.post("/unmark_custom", validateUser, async (req, res) => {
   try {
     await ensure();
-    await query(`DELETE FROM omni_custom_agents WHERE owner_uid = ? AND agent_uid = ?`, [own(req), String(req.body?.uid || "")]);
+    await query(`DELETE FROM omni_custom_agents WHERE owner_uid = ? AND agent_uid = ?`, [
+      own(req),
+      String(req.body?.uid || ""),
+    ]);
     res.json({ success: true });
   } catch (err) {
     fail(res, err);
   }
 });
 
-/** Your own agents, for "Existing agent". An exact email of another client's agent says so, without details. */
+// Your own agents, for "Existing agent"
 router.get("/search_agents", validateUser, async (req, res) => {
   try {
     await ensure();
     const ownerUid = own(req);
-    const q = String(req.query.q || "").trim().toLowerCase();
+    const q = String(req.query.q || "")
+      .trim()
+      .toLowerCase();
     const agents = await getAgents(ownerUid);
     const custom = new Set(
-      (await query(`SELECT agent_uid FROM omni_custom_agents WHERE owner_uid = ?`, [ownerUid])).map((r) => r.agent_uid),
+      (await query(`SELECT agent_uid FROM omni_custom_agents WHERE owner_uid = ?`, [ownerUid])).map(
+        (r) => r.agent_uid,
+      ),
     );
     const lim = await limits(ownerUid);
     const out = [];
     for (const a of agents) {
-      if (q && ![a.name, a.email].some((v) => String(v || "").toLowerCase().includes(q))) continue;
+      if (
+        q &&
+        ![a.name, a.email].some((v) =>
+          String(v || "")
+            .toLowerCase()
+            .includes(q),
+        )
+      )
+        continue;
       const n = (await getAgentAccountKeys(a.uid)).length;
       const max = lim.get(a.uid) ?? null;
       out.push({
@@ -612,7 +629,10 @@ router.get("/search_agents", validateUser, async (req, res) => {
       if (out.length >= 20) break;
     }
     if (q.includes("@") && !out.some((a) => String(a.email).toLowerCase() === q)) {
-      const [other] = await query(`SELECT 1 FROM agents WHERE LOWER(email) = ? AND owner_uid <> ? LIMIT 1`, [q, ownerUid]);
+      const [other] = await query(`SELECT 1 FROM agents WHERE LOWER(email) = ? AND owner_uid <> ? LIMIT 1`, [
+        q,
+        ownerUid,
+      ]);
       if (other) out.push({ uid: null, name: null, email: q, status: "other_client" });
     }
     res.json({ success: true, data: out });
@@ -624,7 +644,8 @@ router.get("/search_agents", validateUser, async (req, res) => {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function inviteHtml({ appName, owner, name, email, password, link }) {
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const esc = (s) =>
+    String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   return `<div style="font-family:Arial,sans-serif;font-size:15px;color:#202020;max-width:520px">
 <p>Hi ${esc(name)},</p>
 <p>${esc(owner)} added you as an agent on ${esc(appName)}.</p>
@@ -638,23 +659,43 @@ router.post("/invite", validateUser, checkPlan, async (req, res) => {
     await ensure();
     const ownerUid = own(req);
     const name = String(req.body?.name || "").trim();
-    const email = String(req.body?.email || "").trim().toLowerCase();
+    const email = String(req.body?.email || "")
+      .trim()
+      .toLowerCase();
     const mobile = String(req.body?.mobile || "").replace(/[^\d+]/g, "");
     const limitRaw = req.body?.limit;
     const limit = limitRaw === "" || limitRaw == null ? null : parseInt(limitRaw, 10);
 
-    if (name.length < 2 || name.length > 50) return res.json({ success: false, field: "name", msg: "Name must be 2–50 characters" });
-    if (!EMAIL_RE.test(email)) return res.json({ success: false, field: "email", msg: "Enter a valid email" });
-    if (mobile.replace(/\D/g, "").length < 8) return res.json({ success: false, field: "mobile", msg: "Enter the phone number with country code" });
+    if (name.length < 2 || name.length > 50)
+      return res.json({ success: false, field: "name", msg: "Name must be 2–50 characters" });
+    if (!EMAIL_RE.test(email))
+      return res.json({ success: false, field: "email", msg: "Enter a valid email" });
+    if (mobile.replace(/\D/g, "").length < 8)
+      return res.json({ success: false, field: "mobile", msg: "Enter the phone number with country code" });
     if (limit != null && (!Number.isFinite(limit) || limit < 1 || limit > 1000))
-      return res.json({ success: false, field: "limit", msg: "Account limit must be a number from 1 to 1000" });
+      return res.json({
+        success: false,
+        field: "limit",
+        msg: "Account limit must be a number from 1 to 1000",
+      });
 
-    const [taken] = await query(`SELECT uid, name, owner_uid FROM agents WHERE LOWER(email) = ? LIMIT 1`, [email]);
+    const [taken] = await query(`SELECT uid, name, owner_uid FROM agents WHERE LOWER(email) = ? LIMIT 1`, [
+      email,
+    ]);
     if (taken) {
       return res.json(
         taken.owner_uid === ownerUid
-          ? { success: false, field: "email", msg: "This email already belongs to one of your agents.", existing: { uid: taken.uid, name: taken.name } }
-          : { success: false, field: "email", msg: "This email already belongs to an agent of another client. Use a different email." },
+          ? {
+              success: false,
+              field: "email",
+              msg: "This email already belongs to one of your agents.",
+              existing: { uid: taken.uid, name: taken.name },
+            }
+          : {
+              success: false,
+              field: "email",
+              msg: "This email already belongs to an agent of another client. Use a different email.",
+            },
       );
     }
 
@@ -664,12 +705,19 @@ router.post("/invite", validateUser, checkPlan, async (req, res) => {
       `INSERT INTO agents (owner_uid, uid, email, password, name, mobile, comments) VALUES (?,?,?,?,?,?,?)`,
       [ownerUid, uid, email, await bcrypt.hash(password, 10), name, mobile, "Custom agent (invited)"],
     );
-    await query(`INSERT IGNORE INTO omni_custom_agents (owner_uid, agent_uid, invited) VALUES (?,?,1)`, [ownerUid, uid]);
+    await query(`INSERT IGNORE INTO omni_custom_agents (owner_uid, agent_uid, invited) VALUES (?,?,1)`, [
+      ownerUid,
+      uid,
+    ]);
     if (limit != null) {
-      await query(`INSERT INTO omni_agent_settings (owner_uid, agent_uid, account_limit) VALUES (?,?,?)`, [ownerUid, uid, limit]);
+      await query(`INSERT INTO omni_agent_settings (owner_uid, agent_uid, account_limit) VALUES (?,?,?)`, [
+        ownerUid,
+        uid,
+        limit,
+      ]);
     }
 
-    // Email with a temporary password, using the platform SMTP (same as password recovery).
+    // Email with a temporary password, using the platform SMTP (same as password recovery)
     let emailed = false;
     try {
       const [smtp] = await query(`SELECT * FROM smtp`, []);
@@ -683,7 +731,14 @@ router.post("/invite", validateUser, checkPlan, async (req, res) => {
           smtp.port,
           smtp.email,
           smtp.password,
-          inviteHtml({ appName, owner: await ownerName(ownerUid), name, email, password, link: `${base}/agent/login` }),
+          inviteHtml({
+            appName,
+            owner: await ownerName(ownerUid),
+            name,
+            email,
+            password,
+            link: `${base}/agent/login`,
+          }),
           `${appName} - You've been added as an agent`,
           smtp.email,
           email,
@@ -696,7 +751,7 @@ router.post("/invite", validateUser, checkPlan, async (req, res) => {
     }
 
     await log(ownerUid, { kind: "custom", summary: `Invited ${name} as a custom agent`, agents: [name] });
-    // When the email couldn't go out, the owner gets the password to pass on.
+    // When the email couldn't go out, the owner gets the password to pass on
     res.json({ success: true, data: { uid, emailed, password: emailed ? undefined : password } });
   } catch (err) {
     fail(res, err);
@@ -715,21 +770,47 @@ router.post("/agent/update", validateUser, async (req, res) => {
     const targetRaw = req.body?.sales_target;
     const target = targetRaw === "" || targetRaw == null ? null : Number(String(targetRaw).replace(/,/g, ""));
     if (target != null && (!Number.isFinite(target) || target <= 0 || target > 1e9))
-      return res.json({ success: false, field: "target", msg: "Sales target must be a number greater than 0" });
+      return res.json({
+        success: false,
+        field: "target",
+        msg: "Sales target must be a number greater than 0",
+      });
 
-    const [agent] = await query(`SELECT uid, name, mobile FROM agents WHERE uid = ? AND owner_uid = ? LIMIT 1`, [uid, ownerUid]);
+    const [agent] = await query(
+      `SELECT uid, name, mobile FROM agents WHERE uid = ? AND owner_uid = ? LIMIT 1`,
+      [uid, ownerUid],
+    );
     if (!agent) return res.json({ success: false, msg: "Agent not found" });
-    if (name.length < 2 || name.length > 50) return res.json({ success: false, field: "name", msg: "Name must be 2–50 characters" });
-    if (mobile.replace(/\D/g, "").length < 8) return res.json({ success: false, field: "mobile", msg: "Enter the phone number with country code" });
+    if (name.length < 2 || name.length > 50)
+      return res.json({ success: false, field: "name", msg: "Name must be 2–50 characters" });
+    if (mobile.replace(/\D/g, "").length < 8)
+      return res.json({ success: false, field: "mobile", msg: "Enter the phone number with country code" });
     if (limit != null && (!Number.isFinite(limit) || limit < 1 || limit > 1000))
-      return res.json({ success: false, field: "limit", msg: "Account limit must be a number from 1 to 1000" });
+      return res.json({
+        success: false,
+        field: "limit",
+        msg: "Account limit must be a number from 1 to 1000",
+      });
     if (limit != null) {
       const n = (await getAgentAccountKeys(uid)).length;
-      if (n > limit) return res.json({ success: false, field: "limit", msg: `${agent.name} already has ${n} accounts. Remove some first or use a higher limit.` });
+      if (n > limit)
+        return res.json({
+          success: false,
+          field: "limit",
+          msg: `${agent.name} already has ${n} accounts. Remove some first or use a higher limit.`,
+        });
     }
 
-    await query(`UPDATE agents SET name = ?, mobile = ? WHERE uid = ? AND owner_uid = ?`, [name, mobile, uid, ownerUid]);
-    const [prevSet] = await query(`SELECT sales_target FROM omni_agent_settings WHERE owner_uid = ? AND agent_uid = ?`, [ownerUid, uid]);
+    await query(`UPDATE agents SET name = ?, mobile = ? WHERE uid = ? AND owner_uid = ?`, [
+      name,
+      mobile,
+      uid,
+      ownerUid,
+    ]);
+    const [prevSet] = await query(
+      `SELECT sales_target FROM omni_agent_settings WHERE owner_uid = ? AND agent_uid = ?`,
+      [ownerUid, uid],
+    );
     const keepTarget = targetRaw === undefined ? (prevSet?.sales_target ?? null) : target;
     await query(
       `INSERT INTO omni_agent_settings (owner_uid, agent_uid, account_limit, sales_target) VALUES (?,?,?,?)
@@ -737,7 +818,9 @@ router.post("/agent/update", validateUser, async (req, res) => {
       [ownerUid, uid, limit, keepTarget],
     );
 
-    const what = [name !== agent.name && "name", mobile !== String(agent.mobile || "") && "phone"].filter(Boolean);
+    const what = [name !== agent.name && "name", mobile !== String(agent.mobile || "") && "phone"].filter(
+      Boolean,
+    );
     if (what.length || limitRaw !== undefined) {
       await log(ownerUid, {
         kind: "agent",
@@ -756,9 +839,14 @@ router.post("/agent/remove", validateUser, async (req, res) => {
     await ensure();
     const ownerUid = own(req);
     const uid = String(req.body?.uid || "");
-    const [agent] = await query(`SELECT uid, name FROM agents WHERE uid = ? AND owner_uid = ? LIMIT 1`, [uid, ownerUid]);
+    const [agent] = await query(`SELECT uid, name FROM agents WHERE uid = ? AND owner_uid = ? LIMIT 1`, [
+      uid,
+      ownerUid,
+    ]);
     if (!agent) return res.json({ success: false, msg: "Agent not found" });
-    await query(`DELETE FROM agent_instances WHERE owner_uid = ? AND agent_uid = ?`, [ownerUid, uid]).catch(() => {});
+    await query(`DELETE FROM agent_instances WHERE owner_uid = ? AND agent_uid = ?`, [ownerUid, uid]).catch(
+      () => {},
+    );
     await query(`DELETE FROM agent_accounts WHERE owner_uid = ? AND agent_uid = ?`, [ownerUid, uid]);
     await query(`DELETE FROM omni_vip WHERE owner_uid = ? AND agent_uid = ?`, [ownerUid, uid]);
     await query(`DELETE FROM omni_custom_agents WHERE owner_uid = ? AND agent_uid = ?`, [ownerUid, uid]);
@@ -771,8 +859,6 @@ router.post("/agent/remove", validateUser, async (req, res) => {
     fail(res, err);
   }
 });
-
-/* ---------- accounts --------------------------------------------------- */
 
 async function ownedAccount(ownerUid, key) {
   return (await listOwnerAccounts(ownerUid)).filter((a) => a.key === key);
@@ -789,7 +875,10 @@ async function chatCount(ownerUid, key) {
   const p = parseKey(key);
   const m = p && accountMatch(p.channel, p.account_id);
   if (!m) return 0;
-  const [r] = await query(`SELECT COUNT(*) n FROM beta_chats WHERE uid = ? AND ${m.sql}`, [ownerUid, ...m.params]);
+  const [r] = await query(`SELECT COUNT(*) n FROM beta_chats WHERE uid = ? AND ${m.sql}`, [
+    ownerUid,
+    ...m.params,
+  ]);
   return Number(r?.n || 0);
 }
 
@@ -800,7 +889,10 @@ router.get("/account/impact", validateUser, async (req, res) => {
     const [acc] = await ownedAccount(own(req), key);
     if (!acc) return res.json({ success: false, msg: "Account not found" });
     const agents = await holdersOf(own(req), key);
-    const [v] = await query(`SELECT COUNT(*) n FROM omni_vip WHERE owner_uid = ? AND acc_key = ?`, [own(req), key]);
+    const [v] = await query(`SELECT COUNT(*) n FROM omni_vip WHERE owner_uid = ? AND acc_key = ?`, [
+      own(req),
+      key,
+    ]);
     res.json({
       success: true,
       data: {
@@ -820,7 +912,9 @@ router.post("/account/rename", validateUser, async (req, res) => {
     await ensure();
     const ownerUid = own(req);
     const key = String(req.body?.key || "");
-    const label = String(req.body?.label || "").trim().slice(0, 60);
+    const label = String(req.body?.label || "")
+      .trim()
+      .slice(0, 60);
     const [acc] = await ownedAccount(ownerUid, key);
     if (!acc) return res.json({ success: false, msg: "Account not found" });
     if (!label) return res.json({ success: false, msg: "Enter a name" });
@@ -828,7 +922,7 @@ router.post("/account/rename", validateUser, async (req, res) => {
       `INSERT INTO omni_account_state (owner_uid, acc_key, label) VALUES (?,?,?) ON DUPLICATE KEY UPDATE label = VALUES(label)`,
       [ownerUid, key, label],
     );
-    // WhatsApp numbers: also rename the session(s), so every page shows it.
+    // WhatsApp numbers: also rename the session(s), so every page shows it
     if (acc.channel === "qr") {
       const rows = await query(`SELECT id, number FROM instance WHERE uid = ?`, [ownerUid]);
       for (const r of rows) {
@@ -837,14 +931,23 @@ router.post("/account/rename", validateUser, async (req, res) => {
         }
       }
     }
-    await log(ownerUid, { kind: "account", summary: `Renamed ${acc.name} to ${label}`, channels: [channelOf(key)] });
+    await log(ownerUid, {
+      kind: "account",
+      summary: `Renamed ${acc.name} to ${label}`,
+      channels: [channelOf(key)],
+    });
     res.json({ success: true });
   } catch (err) {
     fail(res, err);
   }
 });
 
-const REASONS = { unused: "No longer used", seasonal: "Seasonal — we’ll bring it back", moving: "Moving to another number", other: "Other" };
+const REASONS = {
+  unused: "No longer used",
+  seasonal: "Seasonal — we’ll bring it back",
+  moving: "Moving to another number",
+  other: "Other",
+};
 
 router.post("/account/deactivate", validateUser, async (req, res) => {
   try {
@@ -852,7 +955,9 @@ router.post("/account/deactivate", validateUser, async (req, res) => {
     const ownerUid = own(req);
     const key = String(req.body?.key || "");
     const reason = String(req.body?.reason || "");
-    const note = String(req.body?.note || "").trim().slice(0, 500);
+    const note = String(req.body?.note || "")
+      .trim()
+      .slice(0, 500);
     const [acc] = await ownedAccount(ownerUid, key);
     if (!acc) return res.json({ success: false, msg: "Account not found" });
     if (!REASONS[reason]) return res.json({ success: false, field: "reason", msg: "Choose a reason" });
@@ -880,10 +985,10 @@ router.post("/account/reactivate", validateUser, async (req, res) => {
     const key = String(req.body?.key || "");
     const [acc] = await ownedAccount(ownerUid, key);
     if (!acc) return res.json({ success: false, msg: "Account not found" });
-    await query(`UPDATE omni_account_state SET deactivated = 0, reason = NULL, note = NULL WHERE owner_uid = ? AND acc_key = ?`, [
-      ownerUid,
-      key,
-    ]);
+    await query(
+      `UPDATE omni_account_state SET deactivated = 0, reason = NULL, note = NULL WHERE owner_uid = ? AND acc_key = ?`,
+      [ownerUid, key],
+    );
     invalidate(ownerUid);
     await log(ownerUid, { kind: "account", summary: `Resumed ${acc.name}`, channels: [channelOf(key)] });
     res.json({ success: true });
@@ -905,7 +1010,7 @@ router.post("/account/delete", validateUser, async (req, res) => {
     }
 
     if (acc.channel === "qr") {
-      // Every session on this number, the same way the stock /qr/del_instance does it.
+      // Every session on this number, the same way the stock /qr/del_instance does it
       const { getSession, deleteSession } = require("../helper/addon/qr/index.js");
       const rows = await query(`SELECT uniqueId, number FROM instance WHERE uid = ?`, [ownerUid]);
       for (const r of rows) {
@@ -931,7 +1036,9 @@ router.post("/account/delete", validateUser, async (req, res) => {
         if (String(r.page_id).replace(/[^A-Za-z0-9]/g, "") === acc.account_id)
           await query(`DELETE FROM messenger_accounts WHERE id = ? AND uid = ?`, [r.id, ownerUid]);
     } else if (acc.channel === "instagram") {
-      const rows = await query(`SELECT id, user_id, webhook_id FROM instagram_accounts WHERE uid = ?`, [ownerUid]);
+      const rows = await query(`SELECT id, user_id, webhook_id FROM instagram_accounts WHERE uid = ?`, [
+        ownerUid,
+      ]);
       for (const r of rows)
         if (String(r.user_id || r.webhook_id).replace(/[^A-Za-z0-9]/g, "") === acc.account_id)
           await query(`DELETE FROM instagram_accounts WHERE id = ? AND uid = ?`, [r.id, ownerUid]);
@@ -939,12 +1046,19 @@ router.post("/account/delete", validateUser, async (req, res) => {
       return res.json({ success: false, msg: "Disconnect this account from its Channels page" });
     }
 
-    // Clean up everything this page stored about it.
+    // Clean up everything this page stored about it
     const p = parseKey(key);
     if (p.channel === "qr")
-      await query(`DELETE FROM agent_instances WHERE owner_uid = ? AND instance_number = ?`, [ownerUid, p.account_id]).catch(() => {});
+      await query(`DELETE FROM agent_instances WHERE owner_uid = ? AND instance_number = ?`, [
+        ownerUid,
+        p.account_id,
+      ]).catch(() => {});
     else
-      await query(`DELETE FROM agent_accounts WHERE owner_uid = ? AND channel = ? AND account_id = ?`, [ownerUid, p.channel, p.account_id]);
+      await query(`DELETE FROM agent_accounts WHERE owner_uid = ? AND channel = ? AND account_id = ?`, [
+        ownerUid,
+        p.channel,
+        p.account_id,
+      ]);
     await query(`DELETE FROM omni_vip WHERE owner_uid = ? AND acc_key = ?`, [ownerUid, key]);
     await query(`DELETE FROM omni_account_state WHERE owner_uid = ? AND acc_key = ?`, [ownerUid, key]);
     invalidate(ownerUid);
@@ -956,14 +1070,16 @@ router.post("/account/delete", validateUser, async (req, res) => {
   }
 });
 
-/* ---------- VIP customers ---------------------------------------------- */
-
 let timeCol = null;
 async function chatTimeCol() {
   if (timeCol) return timeCol;
   const cols = await query(`SHOW COLUMNS FROM beta_chats`, []);
   const names = cols.map((c) => c.Field);
-  timeCol = names.includes("last_message_came") ? "last_message_came" : names.includes("updatedAt") ? "updatedAt" : "id";
+  timeCol = names.includes("last_message_came")
+    ? "last_message_came"
+    : names.includes("updatedAt")
+      ? "updatedAt"
+      : "id";
   return timeCol;
 }
 
@@ -1012,7 +1128,12 @@ router.get("/customers", validateUser, async (req, res) => {
           name: r.sender_name || r.sender_mobile || "Unknown",
           mobile: r.sender_mobile || "",
           last_at: r.last_at,
-          vip: vipBy.get(r.chat_id) ? { agent_uid: vipBy.get(r.chat_id).agent_uid, exclusive: !!Number(vipBy.get(r.chat_id).exclusive) } : null,
+          vip: vipBy.get(r.chat_id)
+            ? {
+                agent_uid: vipBy.get(r.chat_id).agent_uid,
+                exclusive: !!Number(vipBy.get(r.chat_id).exclusive),
+              }
+            : null,
         })),
       },
     });

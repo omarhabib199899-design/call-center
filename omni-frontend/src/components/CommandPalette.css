@@ -1,0 +1,67 @@
+.cp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 16px 16px;
+  background: rgba(8, 25, 67, 0.35);
+}
+.cp {
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(8, 25, 67, 0.35);
+  font-family: var(--font-ui);
+}
+.cp-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e7e9f0;
+  color: #5d6b98;
+}
+.cp-input input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  font: 400 15px/22px var(--font-ui);
+  color: #14182a;
+}
+.cp-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.cp-list button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: 400 14px/20px var(--font-ui);
+  color: #14182a;
+  text-align: left;
+  cursor: pointer;
+}
+.cp-list button.is-sel {
+  background: #eef1fb;
+}
+.cp-group {
+  color: #8a93a2;
+  font-size: 12px;
+}
+.cp-empty {
+  padding: 14px 10px;
+  color: #8a93a2;
+  font-size: 14px;
+}

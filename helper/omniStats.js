@@ -1,12 +1,4 @@
-/**
- * [CUSTOM] Daily counters for the Home dashboard ("Automation Performance").
- *
- * automation/automation.js calls logFlowRun() once each time an active
- * workflow handles an incoming message: ok = finished, failed = threw an error
- * or was stopped by the engine's timeout / loop protection.
- *
- * Fire-and-forget: never throws, never delays the workflow itself.
- */
+// Daily counters for the Home dashboard ("Automation Performance")
 const { query } = require("../database/dbpromise");
 
 let ready = null;

@@ -1,0 +1,18 @@
+html[data-theme="dark"] .ib-msgs {
+  background-color: #10141b;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+html[data-theme="dark"] .hm-btn-gold,
+html[data-theme="dark"] .hm-btn-gold svg {
+  color: #0d2266;
+}
+html[data-theme="dark"] .hm-r-ico {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+html[data-theme="dark"] {
+  --ls-tiktok: #f2f4f7;
+}
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #3a4150;
+}

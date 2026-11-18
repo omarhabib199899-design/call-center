@@ -1,28 +1,4 @@
-/**
- * [CUSTOM] Campaigns for the new panel (/new/#campaigns).
- *
- * A campaign groups connected accounts, agents and a date range so the team
- * can organise and report on a promotion (White Friday, Ramadan, ...).
- * It does NOT change permissions or message routing: agent access stays in
- * Agents & Channels (helper/agentAccounts.js). Not related to the classic
- * broadcast "campaigns" (routes/broadcast.js), which keep working as before.
- *
- * Status is never stored, it follows the dates:
- *   draft      saved before setup was finished
- *   upcoming   start date in the future
- *   active     today between start and end (inclusive)
- *   completed  end date passed
- *
- *   GET  /api/omni_campaigns/list
- *   GET  /api/omni_campaigns/options          accounts + agents for the wizard
- *   GET  /api/omni_campaigns/stats?id=        conversations / messages in range
- *   POST /api/omni_campaigns/save             { id?, name, type, description,
- *                                               start_date, end_date,
- *                                               accounts[], agents[], draft }
- *   POST /api/omni_campaigns/delete           { id }
- *   POST /api/omni_campaigns/duplicate        { id }
- *   POST /api/omni_campaigns/end_now          { id }
- */
+// Campaigns for the new panel (/new/#campaigns)
 
 const express = require("express");
 const router = express.Router();
@@ -39,8 +15,6 @@ const {
 
 const TYPES = ["white_friday", "black_friday", "ramadan", "product_launch", "seasonal", "custom"];
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-/* ---------- table ----------------------------------------------------- */
 
 let ready = null;
 function ensureTable() {
@@ -66,8 +40,6 @@ function ensureTable() {
   }
   return ready;
 }
-
-/* ---------- helpers --------------------------------------------------- */
 
 function today() {
   const d = new Date();
@@ -122,7 +94,7 @@ function fail(res, err) {
   res.json({ success: false, msg: "something went wrong" });
 }
 
-/** Normalised, de-duplicated account keys the owner really has. */
+// Normalised, de-duplicated account keys the owner really has
 async function cleanAccounts(ownerUid, keys) {
   const owned = new Set((await listOwnerAccounts(ownerUid)).map((a) => a.key));
   return [
@@ -144,8 +116,6 @@ async function cleanAgents(ownerUid, uids) {
   return list.filter((u) => ok.has(u));
 }
 
-/* ---------- message time (same rule as routes/dashboard.js) ----------- */
-
 let msgTime = null;
 async function messageTime() {
   if (msgTime) return msgTime;
@@ -161,7 +131,7 @@ async function messageTime() {
 
 const statsCache = new Map();
 
-/** Conversations and messages on the campaign's accounts within its dates. */
+// Conversations and messages on the campaign's accounts within its dates
 async function campaignStats(ownerUid, c) {
   if (c.status === "draft" || c.status === "upcoming" || !c.accounts.length) return null;
   const key = `${ownerUid}:${c.id}:${c.updatedAt}:${today()}`;
@@ -182,12 +152,12 @@ async function campaignStats(ownerUid, c) {
 
   const T = await messageTime();
   const from = `${c.start_date} 00:00:00`;
-  const to = `${(c.status === "active" ? today() : c.end_date)} 23:59:59`;
+  const to = `${c.status === "active" ? today() : c.end_date} 23:59:59`;
 
-  const chats = await query(
-    `SELECT chat_id FROM beta_chats WHERE uid = ? AND (${clauses.join(" OR ")})`,
-    [ownerUid, ...params],
-  );
+  const chats = await query(`SELECT chat_id FROM beta_chats WHERE uid = ? AND (${clauses.join(" OR ")})`, [
+    ownerUid,
+    ...params,
+  ]);
   const ids = chats.map((r) => r.chat_id);
   let data = { conversations: 0, incoming: 0, outgoing: 0 };
   if (ids.length) {
@@ -197,21 +167,22 @@ async function campaignStats(ownerUid, c) {
         WHERE uid = ? AND chat_id IN (?) AND ${T} BETWEEN ? AND ?`,
       [ownerUid, ids, from, to],
     );
-    data = { conversations: Number(r.conv || 0), incoming: Number(r.inc || 0), outgoing: Number(r.outg || 0) };
+    data = {
+      conversations: Number(r.conv || 0),
+      incoming: Number(r.inc || 0),
+      outgoing: Number(r.outg || 0),
+    };
   }
   statsCache.set(key, { at: Date.now(), data });
   return data;
 }
 
-/* ---------- routes ---------------------------------------------------- */
-
 router.get("/list", validateUser, async (req, res) => {
   try {
     await ensureTable();
-    const rows = await query(
-      `SELECT * FROM omni_campaigns WHERE owner_uid = ? ORDER BY updatedAt DESC`,
-      [req.decode.uid],
-    );
+    const rows = await query(`SELECT * FROM omni_campaigns WHERE owner_uid = ? ORDER BY updatedAt DESC`, [
+      req.decode.uid,
+    ]);
     const list = rows.map(shape);
     for (const c of list) {
       c.stats = await campaignStats(req.decode.uid, c).catch((e) => {
@@ -231,7 +202,7 @@ router.get("/options", validateUser, async (req, res) => {
     const uid = req.decode.uid;
     const exclude = Number(req.query.exclude) || 0;
 
-    // Same number with several QR sessions -> one account.
+    // Same number with several QR sessions -> one account
     const byKey = new Map();
     for (const a of await listOwnerAccounts(uid)) {
       const cur = byKey.get(a.key);
@@ -250,8 +221,10 @@ router.get("/options", validateUser, async (req, res) => {
     const agents = [];
     for (const a of agentRows) agents.push({ ...a, accounts: await getAgentAccountKeys(a.uid) });
 
-    // Accounts already used by another running or upcoming campaign.
-    const others = (await query(`SELECT * FROM omni_campaigns WHERE owner_uid = ? AND id <> ?`, [uid, exclude]))
+    // Accounts already used by another running or upcoming campaign
+    const others = (
+      await query(`SELECT * FROM omni_campaigns WHERE owner_uid = ? AND id <> ?`, [uid, exclude])
+    )
       .map(shape)
       .filter((c) => c.status === "active" || c.status === "upcoming");
     const usedBy = {};
@@ -280,9 +253,13 @@ router.post("/save", validateUser, async (req, res) => {
     const uid = req.decode.uid;
     const b = req.body || {};
 
-    const name = String(b.name || "").trim().slice(0, 60);
+    const name = String(b.name || "")
+      .trim()
+      .slice(0, 60);
     const type = TYPES.includes(b.type) ? b.type : "custom";
-    const description = String(b.description || "").trim().slice(0, 500);
+    const description = String(b.description || "")
+      .trim()
+      .slice(0, 500);
     const start = DAY.test(b.start_date || "") ? b.start_date : null;
     const end = DAY.test(b.end_date || "") ? b.end_date : null;
     const accounts = await cleanAccounts(uid, b.accounts);
@@ -290,7 +267,8 @@ router.post("/save", validateUser, async (req, res) => {
     const draft = !!b.draft;
 
     if (!name) return res.json({ success: false, msg: "Give the campaign a name" });
-    if (start && end && end < start) return res.json({ success: false, msg: "End date is before start date" });
+    if (start && end && end < start)
+      return res.json({ success: false, msg: "End date is before start date" });
     if (!draft) {
       if (!start || !end) return res.json({ success: false, msg: "Pick a start and end date" });
       if (!accounts.length) return res.json({ success: false, msg: "Pick at least one account" });
@@ -325,7 +303,10 @@ router.post("/save", validateUser, async (req, res) => {
 router.post("/delete", validateUser, async (req, res) => {
   try {
     await ensureTable();
-    await query(`DELETE FROM omni_campaigns WHERE id = ? AND owner_uid = ?`, [Number(req.body?.id) || 0, req.decode.uid]);
+    await query(`DELETE FROM omni_campaigns WHERE id = ? AND owner_uid = ?`, [
+      Number(req.body?.id) || 0,
+      req.decode.uid,
+    ]);
     res.json({ success: true });
   } catch (err) {
     fail(res, err);
@@ -337,7 +318,7 @@ router.post("/duplicate", validateUser, async (req, res) => {
     await ensureTable();
     const c = await getOwned(req.decode.uid, req.body?.id);
     if (!c) return res.json({ success: false, msg: "Campaign not found" });
-    // Copies keep accounts, agents and type; dates are picked again.
+    // Copies keep accounts, agents and type; dates are picked again
     const r = await query(`INSERT INTO omni_campaigns SET ?`, [
       {
         owner_uid: req.decode.uid,
@@ -362,16 +343,21 @@ router.post("/end_now", validateUser, async (req, res) => {
     await ensureTable();
     const c = await getOwned(req.decode.uid, req.body?.id);
     if (!c) return res.json({ success: false, msg: "Campaign not found" });
-    if (c.status !== "active") return res.json({ success: false, msg: "Only an active campaign can be ended" });
-    // Ends after today: yesterday as end date makes it Completed right away.
+    if (c.status !== "active")
+      return res.json({ success: false, msg: "Only an active campaign can be ended" });
+    // Ends after today: yesterday as end date makes it Completed right away
     const d = new Date();
     d.setDate(d.getDate() - 1);
     const p = (n) => String(n).padStart(2, "0");
     let end = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-    if (end < c.start_date) end = c.start_date; // started today: keep one-day range
-    await query(`UPDATE omni_campaigns SET end_date = ? WHERE id = ? AND owner_uid = ?`, [end, c.id, req.decode.uid]);
+    if (end < c.start_date) end = c.start_date;
+    await query(`UPDATE omni_campaigns SET end_date = ? WHERE id = ? AND owner_uid = ?`, [
+      end,
+      c.id,
+      req.decode.uid,
+    ]);
     const after = await getOwned(req.decode.uid, c.id);
-    // A campaign that started today stays active until tonight.
+    // A campaign that started today stays active until tonight
     res.json({ success: true, data: after });
   } catch (err) {
     fail(res, err);

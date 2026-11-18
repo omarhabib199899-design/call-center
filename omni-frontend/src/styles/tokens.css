@@ -1,0 +1,57 @@
+:root {
+  /* Fonts */
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-brand: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Sidebar surface */
+  --sb-bg: linear-gradient(357.83deg, #1b3a83 0.34%, #0d2266 47.93%, #081943 99.6%);
+  --sb-edge: rgba(255, 255, 255, 0.04);
+  --sb-divider: #2a303a;
+
+  /* Sidebar text and icons */
+  --sb-text: #c2c8d2; /* nav item label */
+  --sb-text-strong: #ffffff; /* active label, names */
+  --sb-text-muted: #8a93a2; /* icons, subtitles */
+  --sb-text-sub: #9aa2af; /* automation sub-items */
+  --sb-section: #5d6b98; /* ENGAGE / CONFIGURE, chevrons */
+  --sb-icon-light: #e7e9f0; /* header icons, active icon */
+
+  /* Sidebar states */
+  --sb-active-bg: #3d4e85;
+  --sb-hover-bg: rgba(255, 255, 255, 0.06);
+  --sb-search-border: rgba(255, 255, 255, 0.5);
+  --sb-kbd-border: #b4bad0;
+  --sb-tree-line: #e7e9f0;
+
+  /* Brand + accents */
+  --brand: #16b89a;
+  --brand-ink: #f3f5fb;
+  --badge-bg: #d5a815;
+  --badge-ink: #1a1a1a;
+  --avatar-bg: #2e3542;
+
+  /* Tooltip */
+  --tip-bg: #0b1638;
+  --tip-ink: #ffffff;
+  --tip-muted: #8a93a2;
+
+  /* Shape */
+  --radius-item: 8px;
+  --radius-sub: 6px;
+  --radius-kbd: 4px;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: var(--font-ui);
+  background: #edf0f2;
+  color: #14182a;
+}

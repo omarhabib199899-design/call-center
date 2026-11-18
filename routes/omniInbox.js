@@ -1,25 +1,4 @@
-/**
- * [CUSTOM] Backend for the new Inbox (/#inbox in the new panel).
- * Accepts an owner token or an agent token. Mounted at /api/omni_inbox.
- *
- * Messages are still loaded and sent over the stock socket
- * (helper/socket/index.js: load_conversation, send_chat_message, notes,
- * labels, assignment), so delivery works exactly as in the classic inbox.
- * This file only adds what the new design needs on top:
- *
- *   GET  /chats          list with platform / account / status filters + counts
- *   GET  /chat?chat_id=  one chat (deep links)
- *   POST /status         {chat_id, status: open|pending|resolved}
- *   POST /priority       {chat_id, on}
- *   GET  /activity?chat_id=   status changes, notes, sales for the customer panel
- *   POST /sale           {chat_id, amount, currency, note}   (Home "Total Sales")
- *   POST /sale/remove    {id}
- *   GET  /accounts       accounts the signed-in person can send from
- *   GET  /customers?q=   existing customers, for "New conversation"
- *
- * Status rules: a chat is Open unless someone set it Pending or Resolved,
- * and a new customer message after that puts it back to Open.
- */
+// Backend for the new Inbox (/#inbox in the new panel)
 
 const express = require("express");
 const router = express.Router();
@@ -28,8 +7,6 @@ const { query } = require("../database/dbpromise");
 const logger = require("../utils/logger");
 const { buildAgentChatCondition } = require("../helper/agentInstances");
 const A = require("../helper/agentAccounts");
-
-/* ---------- auth: owner or agent ---------- */
 
 async function who(req, res, next) {
   try {
@@ -44,14 +21,29 @@ async function who(req, res, next) {
     if (d?.role === "user" && d.uid) {
       const [u] = await query(`SELECT * FROM user WHERE uid = ? LIMIT 1`, [d.uid]);
       if (!u) return res.status(401).json({ success: false, msg: "Invalid token found" });
-      req.who = { ownerUid: u.uid, isAgent: false, name: u.name || u.email || "Owner", email: u.email, me: u };
+      req.who = {
+        ownerUid: u.uid,
+        isAgent: false,
+        name: u.name || u.email || "Owner",
+        email: u.email,
+        me: u,
+      };
       return next();
     }
     if (d?.role === "agent" && d.uid && d.owner_uid) {
-      const [a] = await query(`SELECT * FROM agents WHERE uid = ? AND owner_uid = ? LIMIT 1`, [d.uid, d.owner_uid]);
-      if (!a || !Number(a.is_active ?? 1)) return res.status(401).json({ success: false, msg: "Invalid agent token" });
-      if (typeof d.tokenVersion !== "undefined" && Number(a.tokenVersion || 0) !== Number(d.tokenVersion || 0)) {
-        return res.status(401).json({ success: false, msg: "Session expired. Please login again.", logout: true });
+      const [a] = await query(`SELECT * FROM agents WHERE uid = ? AND owner_uid = ? LIMIT 1`, [
+        d.uid,
+        d.owner_uid,
+      ]);
+      if (!a || !Number(a.is_active ?? 1))
+        return res.status(401).json({ success: false, msg: "Invalid agent token" });
+      if (
+        typeof d.tokenVersion !== "undefined" &&
+        Number(a.tokenVersion || 0) !== Number(d.tokenVersion || 0)
+      ) {
+        return res
+          .status(401)
+          .json({ success: false, msg: "Session expired. Please login again.", logout: true });
       }
       req.who = { ownerUid: a.owner_uid, isAgent: true, agent: a, name: a.name || a.email, email: a.email };
       return next();
@@ -66,8 +58,6 @@ function fail(res, err) {
   logger.log(err);
   res.json({ success: false, msg: "something went wrong" });
 }
-
-/* ---------- tables ---------- */
 
 let ready = null;
 function ensure() {
@@ -113,8 +103,6 @@ function ensure() {
   return ready;
 }
 
-/* ---------- scope ---------- */
-
 const PLATFORM_ORIGINS = {
   whatsapp: ["qr", "meta"],
   instagram: ["instagram", "instagram_comment"],
@@ -122,19 +110,20 @@ const PLATFORM_ORIGINS = {
   telegram: ["telegram"],
 };
 
-/** WHERE fragment for the chats this person may see (columns unqualified, table beta_chats). */
+// WHERE fragment for the chats this person may see (columns unqualified, table beta_chats)
 async function scope(w) {
   if (!w.isAgent) return { sql: `uid = ?`, params: [w.ownerUid] };
   const s = await buildAgentChatCondition(w.agent.id, w.agent.uid);
   return { sql: `uid = ? AND ${s.sql}`, params: [w.ownerUid, ...s.params] };
 }
 
-/** Last customer message time, in seconds, from beta_chats.last_message. */
+// Last customer message time, in seconds, from beta_chats.last_message
 const LAST_IN = `(CASE WHEN JSON_VALID(c.last_message) AND JSON_UNQUOTE(JSON_EXTRACT(c.last_message,'$.route')) = 'INCOMING'
   THEN (CASE WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(c.last_message,'$.timestamp')) AS DECIMAL(20,0)) > 100000000000
     THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(c.last_message,'$.timestamp')) AS DECIMAL(20,0)) / 1000
     ELSE CAST(JSON_UNQUOTE(JSON_EXTRACT(c.last_message,'$.timestamp')) AS DECIMAL(20,0)) END)
   ELSE 0 END)`;
+// Pending/Resolved only stick until the customer writes again
 const STATUS = `(CASE WHEN s.s_status IN ('pending','resolved') AND ${LAST_IN} <= s.s_since THEN s.s_status ELSE 'open' END)`;
 
 function mineSql(w) {
@@ -157,7 +146,10 @@ async function decorate(w, rows) {
   if (!rows.length) return [];
   const mobiles = [...new Set(rows.map((r) => r.sender_mobile).filter(Boolean))];
   const contacts = mobiles.length
-    ? await query(`SELECT mobile, name FROM contact WHERE uid = ? AND mobile IN (${mobiles.map(() => "?").join(",")})`, [w.ownerUid, ...mobiles]).catch(() => [])
+    ? await query(
+        `SELECT mobile, name FROM contact WHERE uid = ? AND mobile IN (${mobiles.map(() => "?").join(",")})`,
+        [w.ownerUid, ...mobiles],
+      ).catch(() => [])
     : [];
   const cmap = new Map(contacts.map((c) => [c.mobile, c.name]));
   const accounts = await A.listOwnerAccounts(w.ownerUid).catch(() => []);
@@ -176,7 +168,10 @@ async function decorate(w, rows) {
       last_message: parse(r.last_message, null),
       unread_count: Number(r.unread_count || 0),
       chat_label: [].concat(parse(r.chat_label, []) || []).filter(Boolean),
-      assigned_agent: [].concat(parse(r.assigned_agent, []) || []).filter(Boolean).map((a) => ({ id: a.id, uid: a.uid, name: a.name, email: a.email })),
+      assigned_agent: []
+        .concat(parse(r.assigned_agent, []) || [])
+        .filter(Boolean)
+        .map((a) => ({ id: a.id, uid: a.uid, name: a.name, email: a.email })),
       has_note: !!(r.chat_note && r.chat_note !== "[]"),
       status: r.eff_status || "open",
       priority: !!Number(r.s_priority || 0),
@@ -193,12 +188,11 @@ function accountKeyOf(r, inst) {
   if (r.origin === "meta") return "meta:all";
   if (r.origin === "telegram") return "telegram:all";
   if (r.origin === "messenger") return `messenger:${id.replace(/[^A-Za-z0-9]/g, "")}`;
-  if (r.origin === "instagram" || r.origin === "instagram_comment") return `instagram:${id.replace(/[^A-Za-z0-9]/g, "")}`;
+  if (r.origin === "instagram" || r.origin === "instagram_comment")
+    return `instagram:${id.replace(/[^A-Za-z0-9]/g, "")}`;
   const num = id.split(/[:@]/)[0].replace(/\D/g, "");
   return num ? `qr:${num}` : null;
 }
-
-/* ---------- list ---------- */
 
 router.get("/chats", who, async (req, res) => {
   try {
@@ -206,7 +200,7 @@ router.get("/chats", who, async (req, res) => {
     const w = req.who;
     const sc = await scope(w);
 
-    // The agent scope uses unqualified columns; they are unique to beta_chats except chat_id.
+    // The agent scope uses unqualified columns; they are unique to beta_chats except chat_id
     const scopeSql = sc.sql.replace(/\bchat_id\b/g, "c.chat_id").replace(/^uid = \?/, "c.uid = ?");
     const where = [scopeSql];
     const params = [...sc.params];
@@ -220,16 +214,23 @@ router.get("/chats", who, async (req, res) => {
     if (acc) {
       const m = A.accountMatch(acc.channel, acc.account_id);
       if (m) {
-        where.push(m.sql.replace(/\borigin_instance_id\b/g, "c.origin_instance_id").replace(/\borigin\b(?!_)/g, "c.origin"));
+        where.push(
+          m.sql
+            .replace(/\borigin_instance_id\b/g, "c.origin_instance_id")
+            .replace(/\borigin\b(?!_)/g, "c.origin"),
+        );
         params.push(...m.params);
       }
     }
     const q = String(req.query.q || "").trim();
     if (q) {
-      where.push(`(c.sender_name LIKE ? OR c.sender_mobile LIKE ? OR c.last_message LIKE ? OR c.chat_label LIKE ?)`);
+      where.push(
+        `(c.sender_name LIKE ? OR c.sender_mobile LIKE ? OR c.last_message LIKE ? OR c.chat_label LIKE ?)`,
+      );
       params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%"title":"%${q}%`);
     }
-    if (String(req.query.labeled || "") === "1") where.push(`(c.chat_label IS NOT NULL AND c.chat_label NOT IN ('', '[]', 'null'))`);
+    if (String(req.query.labeled || "") === "1")
+      where.push(`(c.chat_label IS NOT NULL AND c.chat_label NOT IN ('', '[]', 'null'))`);
 
     const from = `FROM beta_chats c LEFT JOIN omni_chat_state s ON s.owner_uid = c.uid AND s.chat_key = c.chat_id WHERE ${where.join(" AND ")}`;
 
@@ -252,12 +253,20 @@ router.get("/chats", who, async (req, res) => {
 
     const sort = String(req.query.sort || "newest");
     const order =
-      sort === "oldest" ? `c.updatedAt ASC` : sort === "unread" ? `(c.unread_count > 0) DESC, c.updatedAt DESC` : sort === "priority" ? `COALESCE(s.s_priority,0) DESC, c.updatedAt DESC` : `c.updatedAt DESC`;
+      sort === "oldest"
+        ? `c.updatedAt ASC`
+        : sort === "unread"
+          ? `(c.unread_count > 0) DESC, c.updatedAt DESC`
+          : sort === "priority"
+            ? `COALESCE(s.s_priority,0) DESC, c.updatedAt DESC`
+            : `c.updatedAt DESC`;
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 30));
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
 
     const fullFrom = vWhere.length ? `${from} AND ${vWhere.join(" AND ")}` : from;
-    const [{ n }] = vWhere.length ? await query(`SELECT COUNT(*) n ${fullFrom}`, params) : [{ n: counts.total }];
+    const [{ n }] = vWhere.length
+      ? await query(`SELECT COUNT(*) n ${fullFrom}`, params)
+      : [{ n: counts.total }];
     const rows = await query(
       `SELECT c.*, ${STATUS} eff_status, s.s_priority ${fullFrom} ORDER BY ${order} LIMIT ${limit} OFFSET ${offset}`,
       params,
@@ -308,10 +317,14 @@ router.get("/chat", who, async (req, res) => {
   }
 });
 
-/* ---------- status / priority ---------- */
-
 async function event(w, chatKey, kind, text) {
-  await query(`INSERT INTO omni_chat_events (owner_uid, chat_key, kind, text, actor) VALUES (?,?,?,?,?)`, [w.ownerUid, chatKey, kind, text || null, w.name]);
+  await query(`INSERT INTO omni_chat_events (owner_uid, chat_key, kind, text, actor) VALUES (?,?,?,?,?)`, [
+    w.ownerUid,
+    chatKey,
+    kind,
+    text || null,
+    w.name,
+  ]);
 }
 
 router.post("/status", who, async (req, res) => {
@@ -319,7 +332,8 @@ router.post("/status", who, async (req, res) => {
     await ensure();
     const w = req.who;
     const status = String(req.body?.status || "");
-    if (!["open", "pending", "resolved"].includes(status)) return res.json({ success: false, msg: "Invalid status" });
+    if (!["open", "pending", "resolved"].includes(status))
+      return res.json({ success: false, msg: "Invalid status" });
     const chat = await oneChat(w, req.body?.chat_id);
     if (!chat) return res.json({ success: false, msg: "Conversation not found" });
     const now = Math.floor(Date.now() / 1000);
@@ -329,7 +343,14 @@ router.post("/status", who, async (req, res) => {
       [w.ownerUid, chat.chat_id, status, now],
     );
     if (chat.status !== status) {
-      await event(w, chat.chat_id, status, { open: "Conversation reopened", pending: "Marked as pending", resolved: "Conversation resolved" }[status]);
+      await event(
+        w,
+        chat.chat_id,
+        status,
+        { open: "Conversation reopened", pending: "Marked as pending", resolved: "Conversation resolved" }[
+          status
+        ],
+      );
     }
     res.json({ success: true });
   } catch (err) {
@@ -355,8 +376,6 @@ router.post("/priority", who, async (req, res) => {
     fail(res, err);
   }
 });
-
-/* ---------- activity / sales ---------- */
 
 router.get("/activity", who, async (req, res) => {
   try {
@@ -385,7 +404,13 @@ router.get("/activity", who, async (req, res) => {
     ).catch(() => [{}]);
     res.json({
       success: true,
-      data: { events, sales, source: source || null, firstMessageAt: first?.t || null, messages: Number(first?.n || 0) },
+      data: {
+        events,
+        sales,
+        source: source || null,
+        firstMessageAt: first?.t || null,
+        messages: Number(first?.n || 0),
+      },
     });
   } catch (err) {
     fail(res, err);
@@ -399,15 +424,35 @@ router.post("/sale", who, async (req, res) => {
     const chat = await oneChat(w, req.body?.chat_id);
     if (!chat) return res.json({ success: false, msg: "Conversation not found" });
     const amount = Number(String(req.body?.amount ?? "").replace(/,/g, ""));
-    if (!Number.isFinite(amount) || amount <= 0 || amount > 1e9) return res.json({ success: false, field: "amount", msg: "Enter an amount greater than 0" });
-    const currency = String(req.body?.currency || "EGP").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 8) || "EGP";
-    const note = String(req.body?.note || "").trim().slice(0, 300) || null;
-    // The agent who handles the chat gets the credit: the person recording it,
-    // or (owner recording) the first agent assigned to the chat.
-    const credit = w.isAgent ? { uid: w.agent.uid, name: w.agent.name } : chat.assigned_agent[0] ? { uid: chat.assigned_agent[0].uid, name: chat.assigned_agent[0].name } : { uid: null, name: w.name };
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1e9)
+      return res.json({ success: false, field: "amount", msg: "Enter an amount greater than 0" });
+    const currency =
+      String(req.body?.currency || "EGP")
+        .toUpperCase()
+        .replace(/[^A-Z]/g, "")
+        .slice(0, 8) || "EGP";
+    const note =
+      String(req.body?.note || "")
+        .trim()
+        .slice(0, 300) || null;
+    // Credit goes to the agent recording it, or the chat's first agent if the owner records it
+    const credit = w.isAgent
+      ? { uid: w.agent.uid, name: w.agent.name }
+      : chat.assigned_agent[0]
+        ? { uid: chat.assigned_agent[0].uid, name: chat.assigned_agent[0].name }
+        : { uid: null, name: w.name };
     const r = await query(
       `INSERT INTO omni_sales (owner_uid, chat_key, customer_name, agent_uid, agent_name, amount, currency, note) VALUES (?,?,?,?,?,?,?,?)`,
-      [w.ownerUid, chat.chat_id, chat.contact_name || chat.sender_name || chat.sender_mobile, credit.uid, credit.name, amount, currency, note],
+      [
+        w.ownerUid,
+        chat.chat_id,
+        chat.contact_name || chat.sender_name || chat.sender_mobile,
+        credit.uid,
+        credit.name,
+        amount,
+        currency,
+        note,
+      ],
     );
     await event(w, chat.chat_id, "sale", `Sale recorded: ${currency} ${amount.toLocaleString("en-US")}`);
     res.json({ success: true, data: { id: r.insertId } });
@@ -420,18 +465,25 @@ router.post("/sale/remove", who, async (req, res) => {
   try {
     await ensure();
     const w = req.who;
-    const [s] = await query(`SELECT * FROM omni_sales WHERE id = ? AND owner_uid = ? LIMIT 1`, [req.body?.id, w.ownerUid]);
+    const [s] = await query(`SELECT * FROM omni_sales WHERE id = ? AND owner_uid = ? LIMIT 1`, [
+      req.body?.id,
+      w.ownerUid,
+    ]);
     if (!s) return res.json({ success: false, msg: "Sale not found" });
-    if (w.isAgent && s.agent_uid !== w.agent.uid) return res.json({ success: false, msg: "Only the owner can remove another agent's sale" });
+    if (w.isAgent && s.agent_uid !== w.agent.uid)
+      return res.json({ success: false, msg: "Only the owner can remove another agent's sale" });
     await query(`DELETE FROM omni_sales WHERE id = ? AND owner_uid = ?`, [s.id, w.ownerUid]);
-    await event(w, s.chat_key, "sale", `Sale removed: ${s.currency} ${Number(s.amount).toLocaleString("en-US")}`);
+    await event(
+      w,
+      s.chat_key,
+      "sale",
+      `Sale removed: ${s.currency} ${Number(s.amount).toLocaleString("en-US")}`,
+    );
     res.json({ success: true });
   } catch (err) {
     fail(res, err);
   }
 });
-
-/* ---------- new conversation ---------- */
 
 router.get("/accounts", who, async (req, res) => {
   try {
@@ -441,17 +493,32 @@ router.get("/accounts", who, async (req, res) => {
       const mine = new Set(await A.getAgentAccountKeys(w.agent.uid));
       accounts = accounts.filter((a) => mine.has(a.key));
     }
-    // WhatsApp numbers: the session to send a first message from.
-    const inst = await query(`SELECT uniqueId, number, title, status FROM instance WHERE uid = ? ORDER BY id DESC`, [w.ownerUid]).catch(() => []);
+    // WhatsApp numbers: the session to send a first message from
+    const inst = await query(
+      `SELECT uniqueId, number, title, status FROM instance WHERE uid = ? ORDER BY id DESC`,
+      [w.ownerUid],
+    ).catch(() => []);
     const seen = new Set();
     const out = [];
     for (const a of accounts) {
       if (seen.has(a.key)) continue;
       seen.add(a.key);
-      const item = { key: a.key, channel: a.channel, name: a.name, detail: a.detail, online: a.online, canStart: false };
+      const item = {
+        key: a.key,
+        channel: a.channel,
+        name: a.name,
+        detail: a.detail,
+        online: a.online,
+        canStart: false,
+      };
       if (a.channel === "qr") {
         const s = inst.filter((i) => String(i.number || "").replace(/\D/g, "") === a.account_id);
-        const live = s.find((i) => String(i.status || "").toLowerCase().includes("connect")) || s[0];
+        const live =
+          s.find((i) =>
+            String(i.status || "")
+              .toLowerCase()
+              .includes("connect"),
+          ) || s[0];
         if (live) {
           item.instance = { uniqueId: live.uniqueId, number: String(live.number || "").replace(/\D/g, "") };
           item.canStart = true;

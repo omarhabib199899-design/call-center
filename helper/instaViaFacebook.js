@@ -98,6 +98,16 @@ async function linkInstagramForPage({ uid, page, pageToken }) {
 
     const igId = String(account.id);
 
+    // [CUSTOM] keepDirect: an account already connected with Instagram Login
+    // (approved path, messages work) is kept as is for the same owner.
+    const [direct] = await query(
+      `SELECT uid FROM instagram_accounts WHERE webhook_id = ? AND (token_type IS NULL OR token_type <> ?) LIMIT 1`,
+      [igId, PAGE_TOKEN_TYPE],
+    );
+    if (direct && String(direct.uid) === String(uid)) {
+      return { status: "linked", username: account.username || igId };
+    }
+
     // Same rule as the stock flow: an Instagram account belongs to one owner.
     await query(`DELETE FROM instagram_accounts WHERE webhook_id = ?`, [igId]);
 

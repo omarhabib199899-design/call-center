@@ -468,3 +468,46 @@ this; re-apply the two edits above to the new `main.*.js` (search for
 `label:"Messenger"` and `i.slice(-4)`), save it under a new name and point
 `index.html` at it. The original `main.d12aca39.js` is left untouched for
 rollback: point `index.html` back at it.
+
+---
+
+# Custom feature: new Omni panel
+
+Added November 2026. The new design is a separate React app served at the site
+root (`/`), with the classic pages still available inside it.
+
+## New files (safe across updates)
+
+| File | Purpose |
+|---|---|
+| `omni-frontend/` | Source of the new panel (React + Vite). Build output goes to `client/public/new/`. |
+| `client/public/new/` | Built panel. `/` serves its `index.html`. |
+| `client/public/new-home.js` | Sends top-level `/user` and `/agent` visits without `?page` to `/`. |
+| `routes/dashboard.js` | Home numbers: KPIs, sales, automation performance, team. |
+| `routes/omniInbox.js` | New Inbox: filters, status, priority, activity, sales. Messages still go over the stock socket. |
+| `routes/omniAgents.js` | Agents & Channels: batch assign, history/revert, custom agents, pause/rename/delete accounts, VIP customers, targets. |
+| `routes/omniCampaigns.js` | Campaigns page. |
+| `routes/omniLeads.js` | Lead Sources (click-to-chat ads). |
+| `helper/omniAccess.js` | Paused accounts and VIP rules used when filtering an agent's chats. |
+| `helper/omniStats.js` | Daily workflow run counters (`omni_flow_daily`). |
+| `helper/instaChain.js` | "Activate Instagram messages" list shown after a Facebook connection. |
+
+Tables are created on first use (`CREATE TABLE IF NOT EXISTS`).
+
+## Modified files
+
+- `server.js`: the five `app.use("/api/…")` lines above, and `app.get("/")` before `express.static`.
+- `automation/automation.js`: `processAutomation` reports each run to `helper/omniStats.js`.
+- `helper/agentInstances.js`: skips paused accounts and applies VIP rules.
+- `routes/messenger.js`: after connecting pages that have Instagram, shows the activation list.
+- `helper/instaViaFacebook.js`: a Facebook connection no longer replaces an account already connected with Instagram Login.
+
+## Building the panel
+
+```
+cd omni-frontend
+npm install
+python3 scripts/gen_dark.py src   # only after changing page CSS (regenerates dark mode)
+npm run build
+rm -rf ../client/public/new && cp -r dist ../client/public/new
+```

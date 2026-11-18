@@ -1,15 +1,4 @@
-/**
- * [CUSTOM] Home dashboard numbers for the new panel (/new/#home).
- *
- *   GET /api/dashboard/overview?days=30      (owner token)
- *
- * Everything is computed from tables the app already writes; nothing new is
- * stored. Each block is computed on its own and fails soft (null), so one
- * missing table or column never takes the whole page down.
- *
- * Message times: beta_conversation.createdAt when the column exists, else the
- * `timestamp` column (seconds for WhatsApp QR, milliseconds for some channels).
- */
+// Home dashboard numbers for the new panel (/new/#home)
 
 const express = require("express");
 const router = express.Router();
@@ -29,10 +18,8 @@ const CHANNEL_OF = {
 };
 const CHANNELS = ["whatsapp", "telegram", "instagram", "messenger"];
 
-/* ---------- helpers --------------------------------------------------- */
-
 let msgTimeExpr = null;
-/** SQL expression giving a DATETIME for a beta_conversation row. */
+// SQL expression giving a DATETIME for a beta_conversation row
 async function messageTime() {
   if (msgTimeExpr) return msgTimeExpr;
   let hasCreated = false;
@@ -54,7 +41,7 @@ function dayKey(d) {
   return fmt(d).slice(0, 10);
 }
 
-/** Run one block; on error log it and return null instead of failing. */
+// Run one block; on error log it and return null instead of failing
 async function soft(name, fn) {
   try {
     return await fn();
@@ -64,7 +51,7 @@ async function soft(name, fn) {
   }
 }
 
-/** Fill a { 'YYYY-MM-DD': n } map into an array covering every day. */
+// Fill a { 'YYYY-MM-DD': n } map into an array covering every day
 function series(map, start, days) {
   const out = [];
   for (let i = 0; i < days; i++) {
@@ -74,11 +61,9 @@ function series(map, start, days) {
   return out;
 }
 
-// Small per-owner cache: the page polls, the queries scan message tables.
+// Small per-owner cache: the page polls, the queries scan message tables
 const cache = new Map();
 const TTL = 60 * 1000;
-
-/* ---------- route ----------------------------------------------------- */
 
 router.get("/overview", validateUser, async (req, res) => {
   try {
@@ -95,7 +80,7 @@ router.get("/overview", validateUser, async (req, res) => {
     const prevStart = new Date(start.getTime() - days * 86400000);
     const T = await messageTime();
 
-    // Messages per day and route, current period (feeds 3 blocks).
+    // Messages per day and route, current period (feeds 3 blocks)
     const perDay = await soft("perDay", () =>
       query(
         `SELECT DATE_FORMAT(${T}, '%Y-%m-%d') d, route, origin, COUNT(*) n, COUNT(DISTINCT chat_id) c
@@ -149,8 +134,7 @@ router.get("/overview", validateUser, async (req, res) => {
 
     const channels = await soft("channels", async () => {
       const accounts = await listOwnerAccounts(uid);
-      // Channel comes from the chat row (one per chat). The message rows'
-      // own origin is not reliable for this, so it is not used here.
+      // Channel comes from the chat row (one per chat)
       const counts = await query(
         `SELECT c.origin, COUNT(*) n
            FROM beta_chats c
@@ -181,7 +165,7 @@ router.get("/overview", validateUser, async (req, res) => {
         if (r.route === "OUTGOING") out[k] = (out[k] || 0) + Number(r.n);
         else inc[k] = (inc[k] || 0) + Number(r.n);
       }
-      // Of the chats that wrote in, how many got at least one reply.
+      // Of the chats that wrote in, how many got at least one reply
       const [rr] = await query(
         `SELECT COUNT(*) asked, SUM(replied) replied FROM (
            SELECT chat_id, MAX(route = 'OUTGOING') replied
@@ -204,7 +188,7 @@ router.get("/overview", validateUser, async (req, res) => {
       };
     });
 
-    // [CUSTOM] Sales recorded from the new Inbox (routes/omniInbox.js -> omni_sales).
+    // Sales recorded from the new Inbox (routes/omniInbox.js -> omni_sales)
     const sales = await soft("sales", async () => {
       const rows = await query(
         `SELECT DATE_FORMAT(createdAt, '%Y-%m-%d') d, currency, SUM(amount) amt, COUNT(*) n, createdAt >= ? cur
@@ -212,12 +196,15 @@ router.get("/overview", validateUser, async (req, res) => {
           GROUP BY d, currency, cur`,
         [fmt(start), uid, fmt(prevStart)],
       );
-      // One headline currency: the one with the most sales this period.
+      // One headline currency: the one with the most sales this period
       const byCur = {};
       for (const r of rows) if (Number(r.cur)) byCur[r.currency] = (byCur[r.currency] || 0) + Number(r.amt);
-      const currency = Object.keys(byCur).sort((a, b) => byCur[b] - byCur[a])[0] || (rows[0]?.currency ?? "EGP");
+      const currency =
+        Object.keys(byCur).sort((a, b) => byCur[b] - byCur[a])[0] || (rows[0]?.currency ?? "EGP");
       const daily = {};
-      let value = 0, prev = 0, orders = 0;
+      let value = 0,
+        prev = 0,
+        orders = 0;
       for (const r of rows) {
         if (r.currency !== currency) continue;
         if (Number(r.cur)) {
@@ -226,10 +213,17 @@ router.get("/overview", validateUser, async (req, res) => {
           daily[r.d] = (daily[r.d] || 0) + Number(r.amt);
         } else prev += Number(r.amt);
       }
-      return { value, prev, orders, currency, otherCurrencies: Object.keys(byCur).filter((c) => c !== currency), series: series(daily, start, days) };
+      return {
+        value,
+        prev,
+        orders,
+        currency,
+        otherCurrencies: Object.keys(byCur).filter((c) => c !== currency),
+        series: series(daily, start, days),
+      };
     });
 
-    // [CUSTOM] Workflow runs counted by helper/omniStats.js (automation/automation.js hook).
+    // Workflow runs counted by helper/omniStats.js (automation/automation.js hook)
     const automationPerf = await soft("automationPerf", async () => {
       const week = new Date(today.getTime() - 6 * 86400000);
       const from = week < start ? week : start;
@@ -244,7 +238,8 @@ router.get("/overview", validateUser, async (req, res) => {
         const k = dayKey(new Date(week.getTime() + i * 86400000));
         last7.push({ d: k, ok: Number(map.get(k)?.ok || 0), fail: Number(map.get(k)?.fail || 0) });
       }
-      let ok = 0, fail = 0;
+      let ok = 0,
+        fail = 0;
       for (const r of rows) if (r.d >= dayKey(start)) (ok += Number(r.ok)), (fail += Number(r.fail));
       const [prevRow] = await query(
         `SELECT SUM(ok_count) ok, SUM(fail_count) fail FROM omni_flow_daily WHERE owner_uid = ? AND day >= ? AND day < ?`,
@@ -281,22 +276,43 @@ router.get("/overview", validateUser, async (req, res) => {
           kind: "chat",
         };
       });
-      // [CUSTOM] Sales, assignments/status changes and failing workflows.
+      // Sales, assignments/status changes and failing workflows
       const extra = [];
       const s = await query(
         `SELECT chat_key, customer_name, agent_name, amount, currency, createdAt FROM omni_sales WHERE owner_uid = ? ORDER BY id DESC LIMIT 4`,
         [uid],
       ).catch(() => []);
       for (const x of s)
-        extra.push({ kind: "sale", chat_id: x.chat_key, name: x.customer_name || "", text: `${x.agent_name ? `${x.agent_name} closed` : "Sale of"} ${x.currency} ${Number(x.amount).toLocaleString("en-US")}`, at: x.createdAt });
+        extra.push({
+          kind: "sale",
+          chat_id: x.chat_key,
+          name: x.customer_name || "",
+          text: `${x.agent_name ? `${x.agent_name} closed` : "Sale of"} ${x.currency} ${Number(x.amount).toLocaleString("en-US")}`,
+          at: x.createdAt,
+        });
       const ev = await query(
         `SELECT chat_key, kind, text, actor, createdAt FROM omni_chat_events WHERE owner_uid = ? AND kind IN ('resolved','open') ORDER BY id DESC LIMIT 3`,
         [uid],
       ).catch(() => []);
-      for (const x of ev) extra.push({ kind: x.kind === "resolved" ? "resolved" : "reopened", chat_id: x.chat_key, name: x.actor || "", text: x.text, at: x.createdAt });
+      for (const x of ev)
+        extra.push({
+          kind: x.kind === "resolved" ? "resolved" : "reopened",
+          chat_id: x.chat_key,
+          name: x.actor || "",
+          text: x.text,
+          at: x.createdAt,
+        });
       for (const f of automationPerf?.failing || []) {
-        const [flow] = await query(`SELECT title FROM flow WHERE flow_id = ? AND uid = ? LIMIT 1`, [f.flow_id, uid]).catch(() => []);
-        extra.push({ kind: "automation_failed", name: flow?.title || "Workflow", text: `Failed ${f.fail} ${Number(f.fail) === 1 ? "time" : "times"} this period`, at: f.last });
+        const [flow] = await query(`SELECT title FROM flow WHERE flow_id = ? AND uid = ? LIMIT 1`, [
+          f.flow_id,
+          uid,
+        ]).catch(() => []);
+        extra.push({
+          kind: "automation_failed",
+          name: flow?.title || "Workflow",
+          text: `Failed ${f.fail} ${Number(f.fail) === 1 ? "time" : "times"} this period`,
+          at: f.last,
+        });
       }
       return [...items, ...extra].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 8);
     });
@@ -311,16 +327,24 @@ router.get("/overview", validateUser, async (req, res) => {
             WHERE uid = ? AND updatedAt >= ? AND ${cond.sql}`,
           [uid, fmt(start), ...cond.params],
         );
-        rows.push({ uid: a.uid, name: a.name, email: a.email, conversations: Number(r.n), waiting: Number(r.waiting || 0) });
+        rows.push({
+          uid: a.uid,
+          name: a.name,
+          email: a.email,
+          conversations: Number(r.n),
+          waiting: Number(r.waiting || 0),
+        });
       }
-      // [CUSTOM] Sales per agent in this period, and this month against the agent's monthly target.
+      // Sales per agent in this period, and this month against the agent's monthly target
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
       const ss = await query(
         `SELECT agent_uid, SUM(CASE WHEN createdAt >= ? THEN amount ELSE 0 END) period, SUM(CASE WHEN createdAt >= ? THEN amount ELSE 0 END) month
            FROM omni_sales WHERE owner_uid = ? AND createdAt >= ? GROUP BY agent_uid`,
         [fmt(start), fmt(monthStart), uid, fmt(start < monthStart ? start : monthStart)],
       ).catch(() => []);
-      const tg = await query(`SELECT agent_uid, sales_target FROM omni_agent_settings WHERE owner_uid = ?`, [uid]).catch(() => []);
+      const tg = await query(`SELECT agent_uid, sales_target FROM omni_agent_settings WHERE owner_uid = ?`, [
+        uid,
+      ]).catch(() => []);
       for (const r of rows) {
         const x = ss.find((y) => y.agent_uid === r.uid);
         const t = Number(tg.find((y) => y.agent_uid === r.uid)?.sales_target || 0);
