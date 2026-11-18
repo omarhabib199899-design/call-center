@@ -24,7 +24,7 @@ function mergeArraysWithPhonebook(chatArray, phonebookArray) {
   });
 }
 
-async function sendInstaMsg({ uid, to, msgObj, chatInfo }) {
+async function sendInstaMsg({ uid, to, msgObj, chatInfo, replyToId = null }) {
   try {
     const API_VERSION = "v21.0";
 
@@ -123,6 +123,9 @@ async function sendInstaMsg({ uid, to, msgObj, chatInfo }) {
     // [CUSTOM] Accounts reached through a Facebook Page send with the Page
     // token against graph.facebook.com; Instagram-Login accounts keep using
     // graph.instagram.com exactly as before.
+    // [CUSTOM] reply to a specific message (Send API "reply_to")
+    if (replyToId) body.reply_to = { mid: replyToId };
+
     const res = await fetch(
       require("../instaViaFacebook").messagesUrl(igAccount, API_VERSION),
       {
@@ -304,7 +307,7 @@ function returnMsgObjAfterAddingKey(overrides = {}) {
   return { ...defaultObj, ...overrides };
 }
 
-async function sendMetaMsg({ uid, to, msgObj }) {
+async function sendMetaMsg({ uid, to, msgObj, replyToId = null }) {
   try {
     const [api] = await query(`SELECT * FROM meta_api WHERE uid = ?`, [uid]);
     if (!api || !api?.access_token || !api?.business_phone_number_id) {
@@ -425,6 +428,8 @@ async function sendMetaMsg({ uid, to, msgObj }) {
       recipient_type: "individual",
       to: formatNumber(to),
       ...finalMsgObj,
+      // [CUSTOM] reply to a specific message
+      ...(replyToId ? { context: { message_id: replyToId } } : {}),
     };
 
     const response = await fetch(url, {
@@ -503,7 +508,11 @@ function setQrMsgObj(obj) {
           url: obj?.document?.link,
         },
         caption: obj?.document?.caption || null,
-        fileName: extractFileName(obj?.document?.link),
+        // [CUSTOM] the customer sees the original name, and the right type
+        fileName: obj?.document?.filename || extractFileName(obj?.document?.link),
+        mimetype:
+          mime.lookup(obj?.document?.filename || obj?.document?.link || "") ||
+          "application/octet-stream",
       };
 
     case "location":
@@ -520,7 +529,28 @@ function setQrMsgObj(obj) {
   }
 }
 
-async function sendQrMsg({ uid, to, msgObj, chatInfo }) {
+// [CUSTOM] minimal WAMessage for Baileys' { quoted } option, from a stored row
+function buildQuotedForBaileys(row, jid) {
+  let ctx = row?.msgContext;
+  if (typeof ctx === "string") {
+    try { ctx = JSON.parse(ctx); } catch (e) { ctx = {}; }
+  }
+  ctx = ctx || {};
+  const t = ctx.type || row?.type;
+  let text = ctx?.text?.body || ctx?.[t]?.caption || "";
+  if (!text) {
+    const labels = { image: "📷 Photo", video: "🎥 Video", audio: "🎤 Voice message",
+      document: "📄 " + (ctx?.document?.filename || "Document"), location: "📍 Location",
+      contacts: "👤 Contact", sticker: "Sticker" };
+    text = labels[t] || "Message";
+  }
+  return {
+    key: { remoteJid: jid, id: row.metaChatId, fromMe: row.route === "OUTGOING" },
+    message: { conversation: String(text) },
+  };
+}
+
+async function sendQrMsg({ uid, to, msgObj, chatInfo, quotedRow = null }) {
   try {
     const sessionMobileNumber = extractFinalNumber(chatInfo);
     if (!sessionMobileNumber) {
@@ -572,7 +602,17 @@ async function sendQrMsg({ uid, to, msgObj, chatInfo }) {
 
     // logger.log({ qrObj, jid });
 
-    const send = await timeoutPromise(session?.sendMessage(jid, qrObj), 60000);
+    // [CUSTOM] reply to a specific message: give Baileys the quoted message
+    // (not for groups: quoting there needs the original author, not stored)
+    let sendOpts;
+    if (quotedRow?.metaChatId && !isGroupChat) {
+      sendOpts = { quoted: buildQuotedForBaileys(quotedRow, jid) };
+    }
+
+    const send = await timeoutPromise(
+      sendOpts ? session?.sendMessage(jid, qrObj, sendOpts) : session?.sendMessage(jid, qrObj),
+      60000,
+    );
 
     const msgId = send?.key?.id;
     if (!msgId) {
@@ -649,7 +689,7 @@ function getCurrentTimestampInTimeZone(timezone) {
   return currentTimestampInSeconds;
 }
 
-async function sendMessengerMsg({ uid, to, msgObj, chatInfo }) {
+async function sendMessengerMsg({ uid, to, msgObj, chatInfo, replyToId = null }) {
   try {
     const API_VERSION = "v21.0";
 
@@ -734,6 +774,9 @@ async function sendMessengerMsg({ uid, to, msgObj, chatInfo }) {
           msg: `Unsupported type for Messenger: ${msgObj.type}`,
         };
     }
+
+    // [CUSTOM] reply to a specific message (Send API "reply_to")
+    if (replyToId) body.reply_to = { mid: replyToId };
 
     const res = await fetch(
       `https://graph.facebook.com/${API_VERSION}/me/messages?access_token=${accessToken}`,

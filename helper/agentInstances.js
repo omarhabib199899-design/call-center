@@ -62,35 +62,81 @@ async function buildAgentChatCondition(agentId, agentUid) {
   // '%"id":1%' also matched agents 10-19, 100+..., so agent 1 saw chats
   // assigned to agent 12.
   const id = String(agentId).replace(/\D/g, "");
-  const clauses = [
-    `assigned_agent LIKE ?`,
-    `assigned_agent LIKE ?`,
-    `assigned_agent LIKE ?`,
-  ];
+  const manual = [`assigned_agent LIKE ?`, `assigned_agent LIKE ?`, `assigned_agent LIKE ?`];
   const params = [`%"id":${id},%`, `%"id":${id}}%`, `%"id":"${id}"%`];
+
+  // [CUSTOM] Rules from the Agents & Channels page (helper/omniAccess.js):
+  // deactivated accounts and VIP customers. Empty when not in use.
+  let rules = { deactivated: new Set(), vip: [] };
+  try {
+    const [me] = await query(`SELECT owner_uid FROM agents WHERE uid = ? LIMIT 1`, [agentUid]);
+    rules = await require("./omniAccess").rulesFor(me?.owner_uid);
+  } catch (err) {
+    console.error("[agentInstances] access rules:", err?.message || err);
+  }
+
+  // Whole accounts assigned to this agent.
+  const account = [];
+  const accountParams = [];
 
   const numbers = await getAgentNumbers(agentUid);
 
   for (const number of numbers) {
+    if (rules.deactivated.has(`qr:${number}`)) continue;
     // [CUSTOM] WhatsApp chats only (Pages/Instagram are matched by
     // agentAccounts below), and the number must end at ':' or '@' so
     // 2010946 cannot match 201094646331.
-    clauses.push(
+    account.push(
       `(origin NOT IN ('messenger','instagram','instagram_comment','telegram') AND ` +
         `(origin_instance_id LIKE ? OR origin_instance_id LIKE ?))`,
     );
-    params.push(`%"id":"${number}:%`, `%"id":"${number}@%`);
+    accountParams.push(`%"id":"${number}:%`, `%"id":"${number}@%`);
   }
 
   // [CUSTOM] Facebook Pages, Instagram accounts, Cloud API and Telegram
   // assigned to this agent (helper/agentAccounts.js). Required lazily:
   // agentAccounts requires this file too.
   try {
-    const extra = await require("./agentAccounts").buildAccountClauses(agentUid);
-    clauses.push(...extra.clauses);
-    params.push(...extra.params);
+    const A = require("./agentAccounts");
+    for (const key of await A.getAgentAccountKeys(agentUid)) {
+      const parsed = A.parseKey(key);
+      if (!parsed || parsed.channel === "qr" || rules.deactivated.has(key)) continue;
+      const m = A.accountMatch(parsed.channel, parsed.account_id);
+      if (!m) continue;
+      account.push(m.sql);
+      accountParams.push(...m.params);
+    }
   } catch (err) {
     console.error("[agentInstances] account clauses:", err?.message || err);
+  }
+
+  const { inList } = require("./omniAccess");
+  // VIP customers given to someone else only: hide them from this agent's
+  // whole-account access.
+  const taken = inList(
+    "chat_id",
+    rules.vip.filter((v) => Number(v.exclusive) && v.agent_uid !== agentUid).map((v) => v.chat_id),
+  );
+  // VIP customers given to this agent (not on a deactivated account).
+  const mine = inList(
+    "chat_id",
+    rules.vip.filter((v) => v.agent_uid === agentUid && !rules.deactivated.has(v.acc_key)).map((v) => v.chat_id),
+  );
+
+  const clauses = [...manual];
+  if (account.length) {
+    const whole = `(${account.join(" OR ")})`;
+    if (taken) {
+      clauses.push(`(${whole} AND NOT ${taken.sql})`);
+      params.push(...accountParams, ...taken.params);
+    } else {
+      clauses.push(whole);
+      params.push(...accountParams);
+    }
+  }
+  if (mine) {
+    clauses.push(mine.sql);
+    params.push(...mine.params);
   }
 
   return { sql: `(${clauses.join(" OR ")})`, params };
@@ -113,7 +159,8 @@ async function getAgentsForChat({ ownerUid, chatId }) {
 
   if (!chat) return [];
 
-  const byUid = new Map();
+  const byUid = new Map(); // assigned to the chat by hand
+  const viaAccount = new Map(); // [CUSTOM] assigned to the account it came in on
 
   // 1. Agents assigned to this specific chat (stock behaviour).
   try {
@@ -144,7 +191,7 @@ async function getAgentsForChat({ ownerUid, chatId }) {
     });
 
     for (const a of rows) {
-      if (a?.uid) byUid.set(a.uid, a);
+      if (a?.uid) viaAccount.set(a.uid, a);
     }
   }
 
@@ -156,13 +203,48 @@ async function getAgentsForChat({ ownerUid, chatId }) {
       originInstanceId: chat.origin_instance_id,
     });
     for (const a of rows || []) {
-      if (a?.uid) byUid.set(a.uid, a);
+      if (a?.uid) viaAccount.set(a.uid, a);
     }
   } catch (err) {
     console.error("[agentInstances] account agents:", err?.message || err);
   }
 
+  // 4. [CUSTOM] Deactivated account / VIP customer (helper/omniAccess.js).
+  try {
+    const rules = await require("./omniAccess").rulesFor(ownerUid);
+    const key = chatAccountKey(chat);
+    const vip = rules.vip.find((v) => v.chat_id === chatId);
+    const off = (key && rules.deactivated.has(key)) || (vip && rules.deactivated.has(vip.acc_key));
+
+    if (off) viaAccount.clear();
+    else if (vip && Number(vip.exclusive)) viaAccount.clear();
+
+    if (vip && !off && !byUid.has(vip.agent_uid)) {
+      const [a] = await query(
+        `SELECT id, uid, name, email FROM agents WHERE uid = ? AND owner_uid = ? AND is_active = 1 LIMIT 1`,
+        [vip.agent_uid, ownerUid],
+      );
+      if (a) viaAccount.set(a.uid, a);
+    }
+  } catch (err) {
+    console.error("[agentInstances] access rules:", err?.message || err);
+  }
+
+  for (const [uid, a] of viaAccount) if (!byUid.has(uid)) byUid.set(uid, a);
   return [...byUid.values()];
+}
+
+/** [CUSTOM] "qr:2010...", "messenger:123", ... for the account a chat came in on. */
+function chatAccountKey(chat) {
+  const origin = String(chat?.origin || "");
+  const inst = String(chat?.origin_instance_id || "");
+  if (origin === "meta") return "meta:all";
+  if (origin === "telegram") return "telegram:all";
+  const id = (inst.match(/"id":"?([A-Za-z0-9]+)/) || [])[1];
+  if (!id) return null;
+  if (origin === "messenger") return `messenger:${id}`;
+  if (origin === "instagram" || origin === "instagram_comment") return `instagram:${id}`;
+  return `qr:${normalizeNumber(id)}`;
 }
 
 /**
@@ -211,6 +293,7 @@ module.exports = {
   publicAgent,
   scrubAssignedAgents,
   normalizeNumber,
+  chatAccountKey,
   getAgentNumbers,
   buildAgentChatCondition,
   getAgentsForChat,

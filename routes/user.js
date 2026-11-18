@@ -69,48 +69,8 @@ function formatPhoneNumber(phone) {
   return cleaned;
 }
 
-const allowedMimeTypes = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "video/mp4",
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/ogg",
-  "audio/wav",
-  "audio/webm",
-  "audio/webm;codecs=opus",
-  "application/pdf",
-  "application/json",
-  "text/json",
-];
-
-const allowedExtensions = [
-  "jpg",
-  "jpeg",
-  "png",
-  "webp",
-  "gif",
-  "mp4",
-  "mp3",
-  "ogg",
-  "wav",
-  "pdf",
-  "json",
-  "webm",
-];
-
-const validateUploadFile = (file) => {
-  if (!file) return false;
-
-  const ext = getFileExtension(file.name)?.toLowerCase();
-
-  if (!allowedExtensions.includes(ext)) return false;
-  if (!allowedMimeTypes.includes(file.mimetype)) return false;
-
-  return true;
-};
+// [CUSTOM] allowed upload types live in helper/uploadTypes.js
+const { validateUploadFile } = require("../helper/uploadTypes");
 
 // facebook login
 router.post("/login_with_facebook", async (req, res) => {

@@ -196,6 +196,11 @@ app.use("/api/qr_campaign", require("./routes/qrCampaign"));
 app.use("/api/agent_numbers", require("./routes/agentNumbers"));
 // [CUSTOM] agent <-> Facebook Page / Instagram / channel assignment + inbox filter
 app.use("/api/agent_accounts", require("./routes/agentAccounts"));
+app.use("/api/dashboard", require("./routes/dashboard"));
+app.use("/api/omni_campaigns", require("./routes/omniCampaigns"));
+app.use("/api/omni_agents", require("./routes/omniAgents"));
+app.use("/api/omni_leads", require("./routes/omniLeads"));
+app.use("/api/omni_inbox", require("./routes/omniInbox"));
 // [CUSTOM] link a WhatsApp number with a pairing code (remote reconnect)
 app.use("/api/qr_pairing", require("./routes/qrPairing"));
 // [CUSTOM] click-to-WhatsApp ad attribution
@@ -241,6 +246,7 @@ app.use("/media", createMediaMiddleware("./client/public/media"));
 app.use("/meta-media", createMediaMiddleware("./client/public/meta-media"));
 
 // ─── Static & Catch-All ───────────────────────────────────────────────────────
+app.get("/", (req, res) => res.sendFile(path.resolve(currentDir, "./client/public/new/index.html"))); // [CUSTOM] new design at the site root
 app.use(express.static(path.resolve(currentDir, "./client/public")));
 
 app.get("*", function (request, response) {

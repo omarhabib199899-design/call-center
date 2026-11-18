@@ -618,6 +618,12 @@ router.post("/return_media_url", validateAgent, async (req, res) => {
 
     randomString = randomstring.generate();
     file = req.files.file;
+
+    // [CUSTOM] same allowed file types as the owner upload
+    if (!require("../helper/uploadTypes").validateUploadFile(file)) {
+      return res.status(400).json({ success: false, msg: "Invalid file type" });
+    }
+
     const shouldConvert = req.body.convert === "YES";
     const target = req.body.target; // 'baileys' or other values
 

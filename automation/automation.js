@@ -40,6 +40,7 @@ async function processFlow({
       [uid, flowId, message.senderMobile],
     );
 
+    loopDetection.failed = true; // [CUSTOM] counted as a failed run (helper/omniStats.js)
     return logger.log("Flow terminated due to timeout");
   }
 
@@ -65,6 +66,7 @@ async function processFlow({
       [uid, flowId, message.senderMobile],
     );
 
+    loopDetection.failed = true; // [CUSTOM] counted as a failed run (helper/omniStats.js)
     return logger.log("Flow terminated due to infinite loop");
   }
   // ===== LOOP PROTECTION END =====
@@ -559,20 +561,28 @@ async function processAutomation({
         );
       }
 
-      await processFlow({
-        nodes,
-        edges,
-        uid,
-        flowId: element.flow_id,
-        message,
-        incomingText,
-        user,
-        sessionId,
-        origin,
-        chatId,
-        element,
-        loopDetection: { visitedNodes: new Map(), startTime: Date.now() },
-      });
+      // [CUSTOM] Count each run for the Home "Automation Performance" chart.
+      const loopDetection = { visitedNodes: new Map(), startTime: Date.now() };
+      let ok = false;
+      try {
+        await processFlow({
+          nodes,
+          edges,
+          uid,
+          flowId: element.flow_id,
+          message,
+          incomingText,
+          user,
+          sessionId,
+          origin,
+          chatId,
+          element,
+          loopDetection,
+        });
+        ok = !loopDetection.failed;
+      } finally {
+        require("../helper/omniStats").logFlowRun({ uid, flowId: element.flow_id, ok });
+      }
     } catch (err) {
       logger.log("[processAutomation] forEach error:", err); // ← ADD
     }

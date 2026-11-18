@@ -334,6 +334,7 @@ async function processMessengerMessage({ body, uid }) {
                 ? `${process.env.FRONTENDURI}/meta-media/${fileName}`
                 : mediaUrl || "",
               caption: att.payload?.title || "",
+              filename: att.payload?.title || fileNameFromUrl(mediaUrl),
             },
           };
         } else {
@@ -439,6 +440,17 @@ async function processMessengerMessage({ body, uid }) {
   } catch (err) {
     logger.error("processMessengerMessage error:", err);
     return null;
+  }
+}
+
+// [CUSTOM] original file name from a Meta CDN url (…/123_n.pdf/Invoice.pdf?…)
+function fileNameFromUrl(u) {
+  try {
+    const last = String(u || "").split("?")[0].split("/").pop();
+    const name = decodeURIComponent(last || "");
+    return /\.[a-z0-9]{1,5}$/i.test(name) ? name : "";
+  } catch (e) {
+    return "";
   }
 }
 

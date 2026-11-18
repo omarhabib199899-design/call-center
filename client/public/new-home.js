@@ -1,0 +1,1 @@
+(function(){try{if(window.top===window){var go=function(){var p=location.pathname.replace(/\/+$/,"");var q=new URLSearchParams(location.search);if((p==="/user"||p==="/agent")&&q.get("page")===null){location.replace("/")}};go();setInterval(go,500)}}catch(e){}})();
